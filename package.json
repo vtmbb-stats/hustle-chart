@@ -1,0 +1,13 @@
+{
+  "name": "vt-hustle-chart",
+  "version": "1.0.0",
+  "description": "Virginia Tech Men's Basketball Hustle Chart Input App",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve .",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": ["basketball", "hustle", "stats", "virginia-tech"],
+  "author": "VT Basketball",
+  "license": "MIT"
+}
