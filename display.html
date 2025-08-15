@@ -396,19 +396,19 @@
                         React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
                     ]),
                     React.createElement('div', { className: 'overflow-x-auto', key: 'table' }, [
-                        React.createElement('table', { className: 'w-full text-sm' }, [
+                        React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: 'px-4 py-2 text-left cursor-pointer hover:bg-gray-600', onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600' : 'border-gray-300'} w-48` }, 'Player'),
                                     ...allStats.map(stat => 
                                         React.createElement('th', { 
                                             key: stat, 
-                                            className: 'px-2 py-2 text-center cursor-pointer hover:bg-gray-600 min-w-16',
+                                            className: `px-2 py-2 text-center cursor-pointer hover:bg-gray-600 min-w-12 border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`,
                                             onClick: () => setSortCol(stat)
-                                        }, stat.replace(' ', ' '))
+                                        }, stat.replace(/ /g, ' '))
                                     ),
                                     React.createElement('th', { 
-                                        className: `px-4 py-2 text-center cursor-pointer font-bold ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
+                                        className: `px-4 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} w-20 ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
                                         onClick: () => setSortCol('Total')
                                     }, 'Total')
                                 ])
@@ -417,18 +417,18 @@
                                 sortedPlayers.map((player, index) =>
                                     React.createElement('tr', {
                                         key: player.number,
-                                        className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} ${index < 3 ? (darkMode ? 'bg-green-900/20' : 'bg-green-50') : ''}`
+                                        className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
                                     }, [
-                                        React.createElement('td', { className: 'px-4 py-2 font-medium' }, `#${player.number} ${player.name}`),
+                                        React.createElement('td', { className: `px-4 py-1 font-medium border ${darkMode ? 'border-gray-600' : 'border-gray-300'}` }, player.name),
                                         ...allStats.map(stat => {
                                             const value = player[stat] || 0;
                                             const isNegative = statWeights[stat] < 0;
                                             return React.createElement('td', { 
                                                 key: stat, 
-                                                className: `px-2 py-2 text-center ${value > 0 ? (isNegative ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold') : ''}`
+                                                className: `px-2 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold') : ''}`
                                             }, value > 0 ? value : '');
                                         }),
-                                        React.createElement('td', { className: `px-4 py-2 text-center font-bold ${player.Total > 0 ? 'text-green-600' : player.Total < 0 ? 'text-red-600' : ''}` }, player.Total)
+                                        React.createElement('td', { className: `px-4 py-1 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-600' : player.Total < 0 ? 'text-red-600' : ''}` }, player.Total)
                                     ])
                                 )
                             )
@@ -465,27 +465,27 @@
                     data: recentPracticeData,
                     sortCol: sortColumn,
                     setSortCol: setSortColumn,
-                    title: '📊 Most Recent Practice'
+                    title: 'Most Recent Practice'
                 }),
 
                 // Season Summary Table
-                React.createElement(TableComponent, {
+                seasonData.length > 0 ? React.createElement(TableComponent, {
                     key: 'season',
-                    data: seasonData.length > 0 ? { date: 'All Practices Combined', players: seasonData } : null,
+                    data: { date: 'All Practices Combined', players: seasonData },
                     sortCol: seasonSortColumn,
                     setSortCol: setSeasonSortColumn,
-                    title: '🏀 Season Summary'
-                }),
+                    title: 'Season Summary'
+                }) : null,
 
                 // Trending Players
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6`, key: 'trending' }, [
                     React.createElement('div', { className: 'p-4 border-b' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, '📈 Trending Players'),
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Trending Players'),
                         React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, 'Net change in hustle score over last 5 practices')
                     ]),
                     React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4 p-4' }, [
                         React.createElement('div', { key: 'trending-up' }, [
-                            React.createElement('h3', { className: `text-lg font-semibold text-green-600 mb-2` }, '⬆️ Trending Up'),
+                            React.createElement('h3', { className: `text-lg font-semibold text-green-600 mb-2` }, 'Trending Up'),
                             React.createElement('div', { className: 'space-y-2' },
                                 trendingData.up.map((player, index) =>
                                     React.createElement('div', {
@@ -499,7 +499,7 @@
                             )
                         ]),
                         React.createElement('div', { key: 'trending-down' }, [
-                            React.createElement('h3', { className: `text-lg font-semibold text-red-600 mb-2` }, '⬇️ Needs Focus'),
+                            React.createElement('h3', { className: `text-lg font-semibold text-red-600 mb-2` }, 'Trending Down'),
                             React.createElement('div', { className: 'space-y-2' },
                                 trendingData.down.map((player, index) =>
                                     React.createElement('div', {
@@ -518,7 +518,7 @@
                 // Custom Player Chart
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: 'chart' }, [
                     React.createElement('div', { className: 'p-4 border-b' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, '📊 Player Trend Chart'),
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Player Trend Chart'),
                         React.createElement('div', { className: 'flex gap-4 mt-2' }, [
                             React.createElement('select', {
                                 value: selectedPlayer,
@@ -530,7 +530,7 @@
                                     React.createElement('option', {
                                         key: player.number,
                                         value: player.number
-                                    }, `#${player.number} ${player.firstName} ${player.lastName}`)
+                                    }, `${player.firstName} ${player.lastName}`)
                                 )
                             ]),
                             React.createElement('select', {
