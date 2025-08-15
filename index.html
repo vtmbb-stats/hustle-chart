@@ -32,20 +32,20 @@
 
             // Your actual roster
             const players = [
-                { number: 0, lastName: "Bedford" },
-                { number: 1, lastName: "Lawal" },
-                { number: 2, lastName: "Schutt" },
-                { number: 3, lastName: "Hammond" },
-                { number: 4, lastName: "Pasha" },
-                { number: 5, lastName: "Jones" },
-                { number: 7, lastName: "Freeman" },
-                { number: 10, lastName: "Johnson" },
-                { number: 13, lastName: "Hansberry" },
-                { number: 15, lastName: "Peterkin" },
-                { number: 17, lastName: "Avdalas" },
-                { number: 22, lastName: "Davis" },
-                { number: 32, lastName: "Gurdak" },
-                { number: 77, lastName: "Dorn" }
+                { number: 0, lastName: "Bedford", firstName: "Jailen" },
+                { number: 1, lastName: "Lawal", firstName: "Tobi" },
+                { number: 2, lastName: "Schutt", firstName: "Jaden" },
+                { number: 3, lastName: "Hammond", firstName: "Ben" },
+                { number: 4, lastName: "Pasha", firstName: "Izaiah" },
+                { number: 5, lastName: "Jones", firstName: "Sin'Cere" },
+                { number: 7, lastName: "Freeman", firstName: "Brett" },
+                { number: 10, lastName: "Johnson", firstName: "Tyler" },
+                { number: 13, lastName: "Hansberry", firstName: "Amani" },
+                { number: 15, lastName: "Peterkin", firstName: "Snook" },
+                { number: 17, lastName: "Avdalas", firstName: "Neo" },
+                { number: 22, lastName: "Davis", firstName: "Solomon" },
+                { number: 32, lastName: "Gurdak", firstName: "Christian" },
+                { number: 77, lastName: "Dorn", firstName: "Antonio" }
             ];
 
             const hustleStats = {
@@ -193,7 +193,7 @@
                 // Player Selection
                 React.createElement('div', { className: "bg-white rounded-lg shadow-md p-6 mb-6", key: "players" }, [
                     React.createElement('h2', { className: "text-xl font-semibold text-gray-800 mb-4" }, "Select Player"),
-                    React.createElement('div', { className: "grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-3" }, 
+                    React.createElement('div', { className: "grid grid-cols-7 gap-3" }, 
                         players.map((player) => 
                             React.createElement('button', {
                                 key: player.number,
@@ -215,7 +215,7 @@
                 selectedPlayer ? 
                     React.createElement('div', { className: "bg-white rounded-lg shadow-md p-6", key: "stats" }, [
                         React.createElement('h2', { className: "text-xl font-semibold text-gray-800 mb-4" }, 
-                            `Stats for ${selectedPlayer} ${players.find(p => p.number === selectedPlayer)?.lastName}`
+                            `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
                         ),
                         React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
                             Object.entries(hustleStats).map(([category, stats]) =>
