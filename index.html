@@ -8,6 +8,11 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         .animate-pulse {
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -24,11 +29,26 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect } = React;
 
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDabJZx_x3SJEYk1dWwHJw0wUsp48yUWxc",
+            authDomain: "vtmbb-hustle-chart.firebaseapp.com",
+            projectId: "vtmbb-hustle-chart",
+            storageBucket: "vtmbb-hustle-chart.firebasestorage.app",
+            messagingSenderId: "210232739134",
+            appId: "1:210232739134:web:78ed344affb9f8c0ba586f"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         const HustleChartInput = () => {
             const [practiceDate, setPracticeDate] = useState(new Date().toISOString().split('T')[0]);
             const [selectedPlayer, setSelectedPlayer] = useState(null);
             const [playerStats, setPlayerStats] = useState({});
             const [allData, setAllData] = useState([]);
+            const [saveStatus, setSaveStatus] = useState('saved');
 
             // Your actual roster
             const players = [
@@ -69,23 +89,51 @@
                 return playerStats[key]?.[stat] || 0;
             }, [playerStats, practiceDate]);
 
-            // Auto-save data to localStorage for real-time sharing
-            const saveData = useCallback(() => {
-                const dataToSave = {
-                    playerStats,
-                    allEvents: allData,
-                    lastUpdated: new Date().toISOString()
-                };
-                // In production, this would save to a database
-                // For now, we'll use a simple storage mechanism
-                window.hustleChartData = dataToSave;
-                console.log('Data auto-saved:', dataToSave);
-            }, [playerStats, allData]);
+            // Save data to Firebase
+            const saveToFirebase = useCallback(async (eventData) => {
+                try {
+                    setSaveStatus('saving');
+                    
+                    // Save individual event
+                    await db.collection('hustleEvents').add({
+                        ...eventData,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-            // Auto-save whenever data changes
-            useEffect(() => {
-                saveData();
-            }, [saveData]);
+                    // Update practice summary
+                    const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
+                    const practiceSnapshot = await practiceDoc.get();
+                    
+                    if (practiceSnapshot.exists()) {
+                        const currentData = practiceSnapshot.data();
+                        const playerKey = `player_${eventData.playerNumber}`;
+                        const currentPlayerStats = currentData.playerStats?.[playerKey] || {};
+                        const newStatValue = (currentPlayerStats[eventData.stat] || 0) + eventData.change;
+                        
+                        await practiceDoc.update({
+                            [`playerStats.${playerKey}.${eventData.stat}`]: Math.max(0, newStatValue),
+                            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    } else {
+                        const initialData = {
+                            practiceDate: practiceDate,
+                            playerStats: {
+                                [`player_${eventData.playerNumber}`]: {
+                                    [eventData.stat]: Math.max(0, eventData.change)
+                                }
+                            },
+                            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        await practiceDoc.set(initialData);
+                    }
+                    
+                    setSaveStatus('saved');
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                    setSaveStatus('error');
+                    setTimeout(() => setSaveStatus('saved'), 3000);
+                }
+            }, [practiceDate]);
 
             const updateStat = useCallback((playerNumber, stat, change) => {
                 const key = getPlayerKey(playerNumber);
@@ -103,18 +151,22 @@
                     return newStats;
                 });
 
-                // Log the event
-                const event = {
+                // Create event data
+                const eventData = {
                     practiceDate,
                     playerNumber,
                     playerName: players.find(p => p.number === playerNumber)?.lastName || 'Unknown',
+                    firstName: players.find(p => p.number === playerNumber)?.firstName || '',
                     stat,
-                    timestamp: new Date().toISOString(),
-                    change
+                    change,
+                    timestamp: new Date().toISOString()
                 };
                 
-                setAllData(prev => [...prev, event]);
-            }, [practiceDate, players]);
+                setAllData(prev => [...prev, eventData]);
+                
+                // Save to Firebase
+                saveToFirebase(eventData);
+            }, [practiceDate, players, saveToFirebase]);
 
             const handlePlayerSelect = (playerNumber) => {
                 setSelectedPlayer(playerNumber);
@@ -167,6 +219,31 @@
                 ]);
             };
 
+            const getSaveStatusDisplay = () => {
+                switch(saveStatus) {
+                    case 'saving':
+                        return {
+                            color: 'text-yellow-600',
+                            dot: 'bg-yellow-500',
+                            text: 'Saving...'
+                        };
+                    case 'error':
+                        return {
+                            color: 'text-red-600',
+                            dot: 'bg-red-500',
+                            text: 'Save error'
+                        };
+                    default:
+                        return {
+                            color: 'text-green-600',
+                            dot: 'bg-green-500',
+                            text: 'Saved to cloud'
+                        };
+                }
+            };
+
+            const statusDisplay = getSaveStatusDisplay();
+
             return React.createElement('div', { className: "max-w-6xl mx-auto p-4 bg-gray-50 min-h-screen" }, [
                 // Header
                 React.createElement('div', { className: "bg-white rounded-lg shadow-md p-6 mb-6", key: "header" }, [
@@ -182,9 +259,11 @@
                                     className: "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 })
                             ]),
-                            React.createElement('div', { className: "flex items-center gap-2 text-sm text-green-600" }, [
-                                React.createElement('div', { className: "w-2 h-2 bg-green-500 rounded-full animate-pulse" }),
-                                React.createElement('span', {}, "Auto-saving data")
+                            React.createElement('div', { className: `flex items-center gap-2 text-sm ${statusDisplay.color}` }, [
+                                React.createElement('div', { 
+                                    className: `w-2 h-2 ${statusDisplay.dot} rounded-full ${saveStatus === 'saving' ? 'animate-pulse' : ''}` 
+                                }),
+                                React.createElement('span', {}, statusDisplay.text)
                             ])
                         ])
                     ])
