@@ -1,5 +1,4 @@
-
-            // Load existing data from Firebase for the current practice date
+// Load existing data from Firebase for the current practice date
             const loadExistingData = useCallback(async () => {
                 try {
                     const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
