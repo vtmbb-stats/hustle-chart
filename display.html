@@ -185,8 +185,8 @@
                     const seasonProcessed = processPlayerData(seasonStats, 'Season Total');
                     setSeasonData(seasonProcessed);
 
-                    // Calculate trending players based on cumulative season totals
-                    calculateTrending(seasonStats);
+                    // Calculate trending players based on season total change over last 5 practices
+                    await calculateTrending();
 
                     setLastUpdated(new Date().toLocaleString());
                 } catch (error) {
@@ -228,33 +228,84 @@
                 };
             };
 
-            // Calculate trending players based on cumulative season totals
-            const calculateTrending = (seasonStats) => {
-                const playerTotals = [];
-
-                players.forEach(player => {
-                    const playerKey = `player_${player.number}`;
-                    const stats = seasonStats[playerKey] || {};
-                    const totalScore = calculateTotal(stats);
+            // Calculate trending players based on change in season total over last 5 practices
+            const calculateTrending = async () => {
+                try {
+                    // Get all practices ordered by date descending
+                    const practicesSnapshot = await db.collection('practiceSummaries')
+                        .orderBy('practiceDate', 'desc')
+                        .get();
                     
-                    playerTotals.push({
-                        name: `${player.firstName} ${player.lastName}`,
-                        totalScore,
-                        number: player.number
-                    });
-                });
+                    if (practicesSnapshot.empty || practicesSnapshot.size < 5) {
+                        setTrendingData({ up: [], down: [] });
+                        return;
+                    }
 
-                // Sort by total score descending
-                const sorted = playerTotals.sort((a, b) => b.totalScore - a.totalScore);
-                
-                // Get top 3 performers and bottom 3 performers
-                const topPerformers = sorted.slice(0, 3).filter(p => p.totalScore > 0);
-                const bottomPerformers = sorted.slice(-3).reverse().filter(p => p.totalScore < 0);
-                
-                setTrendingData({
-                    up: topPerformers,
-                    down: bottomPerformers
-                });
+                    const practicesData = [];
+                    practicesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        practicesData.push({
+                            date: data.practiceDate,
+                            playerStats: data.playerStats || {}
+                        });
+                    });
+
+                    // Only use the last 5 practices
+                    const last5Practices = practicesData.slice(0, 5);
+                    const playerTrends = [];
+
+                    players.forEach(player => {
+                        const playerKey = `player_${player.number}`;
+                        
+                        // Calculate cumulative season totals at each point
+                        let currentSeasonTotal = 0;
+                        let oldestSeasonTotal = 0;
+                        
+                        // Go through all practices to build up to the 5th most recent
+                        for (let i = practicesData.length - 1; i >= 0; i--) {
+                            const practice = practicesData[i];
+                            const stats = practice.playerStats[playerKey] || {};
+                            const practiceScore = calculateTotal(stats);
+                            
+                            // If this is the 5th most recent practice (oldest of our 5)
+                            if (i === 4) {
+                                oldestSeasonTotal = currentSeasonTotal + practiceScore;
+                            }
+                            
+                            currentSeasonTotal += practiceScore;
+                            
+                            // If this is the most recent practice
+                            if (i === 0) {
+                                break;
+                            }
+                        }
+                        
+                        // Calculate the change in season total over the last 5 practices
+                        const seasonTotalChange = currentSeasonTotal - oldestSeasonTotal;
+                        
+                        playerTrends.push({
+                            name: `${player.firstName} ${player.lastName}`,
+                            seasonTotalChange,
+                            currentSeasonTotal,
+                            oldestSeasonTotal,
+                            number: player.number
+                        });
+                    });
+
+                    // Sort by season total change descending
+                    const sorted = playerTrends.sort((a, b) => b.seasonTotalChange - a.seasonTotalChange);
+                    
+                    // Get top 3 trending up and bottom 3 trending down
+                    const trendingUp = sorted.slice(0, 3).filter(p => p.seasonTotalChange > 0);
+                    const trendingDown = sorted.slice(-3).reverse().filter(p => p.seasonTotalChange < 0);
+                    
+                    setTrendingData({
+                        up: trendingUp,
+                        down: trendingDown
+                    });
+                } catch (error) {
+                    console.error('Error calculating trending data:', error);
+                }
             };
 
             // Sort function for tables
@@ -480,15 +531,15 @@
                     title: 'Season Summary'
                 }) : null,
 
-                // Top/Bottom Performers
+                // Top/Bottom Trending
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6`, key: 'trending' }, [
                     React.createElement('div', { className: 'p-4 border-b' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Season Leaders'),
-                        React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, 'Based on cumulative season hustle scores')
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Trending Players'),
+                        React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, 'Change in season total over last 5 practices')
                     ]),
                     React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4 p-4' }, [
-                        React.createElement('div', { key: 'top-performers' }, [
-                            React.createElement('h3', { className: `text-lg font-semibold text-green-600 mb-2` }, 'Top Performers'),
+                        React.createElement('div', { key: 'trending-up' }, [
+                            React.createElement('h3', { className: `text-lg font-semibold text-green-600 mb-2` }, 'Trending Up'),
                             React.createElement('div', { className: 'space-y-2' },
                                 trendingData.up.map((player, index) =>
                                     React.createElement('div', {
@@ -496,13 +547,13 @@
                                         className: `p-2 rounded ${darkMode ? 'bg-green-900/20' : 'bg-green-50'} border-l-4 border-green-500`
                                     }, [
                                         React.createElement('div', { className: `font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}` }, player.name),
-                                        React.createElement('div', { className: 'text-sm text-green-600' }, `${player.totalScore} season total`)
+                                        React.createElement('div', { className: 'text-sm text-green-600' }, `+${player.seasonTotalChange} season total improvement`)
                                     ])
                                 )
                             )
                         ]),
-                        React.createElement('div', { key: 'bottom-performers' }, [
-                            React.createElement('h3', { className: `text-lg font-semibold text-red-600 mb-2` }, 'Needs Improvement'),
+                        React.createElement('div', { key: 'trending-down' }, [
+                            React.createElement('h3', { className: `text-lg font-semibold text-red-600 mb-2` }, 'Trending Down'),
                             React.createElement('div', { className: 'space-y-2' },
                                 trendingData.down.map((player, index) =>
                                     React.createElement('div', {
@@ -510,7 +561,7 @@
                                         className: `p-2 rounded ${darkMode ? 'bg-red-900/20' : 'bg-red-50'} border-l-4 border-red-500`
                                     }, [
                                         React.createElement('div', { className: `font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}` }, player.name),
-                                        React.createElement('div', { className: 'text-sm text-red-600' }, `${player.totalScore} season total`)
+                                        React.createElement('div', { className: 'text-sm text-red-600' }, `${player.seasonTotalChange} season total decline`)
                                     ])
                                 )
                             )
