@@ -67,7 +67,7 @@
         const HustleDisplay = () => {
             const [darkMode, setDarkMode] = useState(false);
             const [recentPracticeData, setRecentPracticeData] = useState(null);
-            const [seasonData, setSeasonData] = useState([]);
+            const [seasonData, setSeasonData] = useState(null);
             const [sortColumn, setSortColumn] = useState('Total');
             const [seasonSortColumn, setSeasonSortColumn] = useState('Total');
             const [trendingData, setTrendingData] = useState({ up: [], down: [] });
@@ -522,14 +522,14 @@
                     title: 'Most Recent Practice'
                 }),
 
-                // Season Summary Table
-                seasonData.length > 0 ? React.createElement(TableComponent, {
+                // Season Total Table (same format as Recent Practice)
+                React.createElement(TableComponent, {
                     key: 'season',
-                    data: { date: 'All Practices Combined', players: seasonData },
+                    data: seasonData,
                     sortCol: seasonSortColumn,
                     setSortCol: setSeasonSortColumn,
-                    title: 'Season Summary'
-                }) : null,
+                    title: 'Season Total'
+                }),
 
                 // Top/Bottom Trending
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6`, key: 'trending' }, [
