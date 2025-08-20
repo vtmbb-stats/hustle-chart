@@ -1,34 +1,4 @@
-// Load existing data from Firebase for the current practice date
-            const loadExistingData = useCallback(async () => {
-                try {
-                    const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
-                    const practiceSnapshot = await practiceDoc.get();
-                    
-                    if (practiceSnapshot.exists) {
-                        const currentData = practiceSnapshot.data();
-                        const loadedPlayerStats = {};
-                        
-                        // Convert Firebase data back to our format
-                        Object.entries(currentData.playerStats || {}).forEach(([playerKey, stats]) => {
-                            const playerNumber = parseInt(playerKey.replace('player_', ''));
-                            const key = getPlayerKey(playerNumber);
-                            loadedPlayerStats[key] = { ...stats };
-                        });
-                        
-                        setPlayerStats(loadedPlayerStats);
-                    } else {
-                        // Clear stats if no data exists for this date
-                        setPlayerStats({});
-                    }
-                } catch (error) {
-                    console.error('Error loading existing data:', error);
-                }
-            }, [practiceDate]);
-
-            // Load data when practice date changes
-            useEffect(() => {
-                loadExistingData();
-            }, [loadExistingData]);<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -139,6 +109,38 @@
                 const key = getPlayerKey(playerNumber);
                 return playerStats[key]?.[stat] || 0;
             }, [playerStats, practiceDate]);
+
+            // Load existing data from Firebase for the current practice date
+            const loadExistingData = useCallback(async () => {
+                try {
+                    const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
+                    const practiceSnapshot = await practiceDoc.get();
+                    
+                    if (practiceSnapshot.exists) {
+                        const currentData = practiceSnapshot.data();
+                        const loadedPlayerStats = {};
+                        
+                        // Convert Firebase data back to our format
+                        Object.entries(currentData.playerStats || {}).forEach(([playerKey, stats]) => {
+                            const playerNumber = parseInt(playerKey.replace('player_', ''));
+                            const key = getPlayerKey(playerNumber);
+                            loadedPlayerStats[key] = { ...stats };
+                        });
+                        
+                        setPlayerStats(loadedPlayerStats);
+                    } else {
+                        // Clear stats if no data exists for this date
+                        setPlayerStats({});
+                    }
+                } catch (error) {
+                    console.error('Error loading existing data:', error);
+                }
+            }, [practiceDate]);
+
+            // Load data when practice date changes
+            useEffect(() => {
+                loadExistingData();
+            }, [loadExistingData]);
 
             // Save data to Firebase
             const saveToFirebase = useCallback(async (eventData) => {
