@@ -96,11 +96,41 @@
                 ],
                 "Defensive": [
                     "Steal", "Deflection", "Charge Drawn", "Foul", 
-                    "No Crash/Get Back", "Missed Close Out", "Missed Box Out"
+                    "No Crash Get Back", "Missed Close Out", "Missed Box Out"
                 ],
                 "Intangibles": [
                     "Hustle Play", "Body Language", "Coach's Point"
                 ]
+            };
+
+            // All stats and their point values for Total calculation
+            const statWeights = {
+                // Positive stats
+                'Offensive Rebound': 1,
+                'Assist': 1,
+                'Extra Pass': 1,
+                'Screen Assist': 1,
+                'Gretzky': 1,
+                'Steal': 1,
+                'Deflection': 1,
+                'Charge Drawn': 5,
+                'Hustle Play': 1,
+                'Coach\'s Point': 1,
+                // Negative stats
+                'Turnover': -1,
+                'Foul': -1,
+                'No Crash Get Back': -1,
+                'Missed Close Out': -1,
+                'Missed Box Out': -1,
+                'Body Language': -1
+            };
+
+            // Calculate total score for a player's stats
+            const calculateTotal = (stats) => {
+                return Object.keys(statWeights).reduce((total, stat) => {
+                    const value = stats[stat] || 0;
+                    return total + (value * statWeights[stat]);
+                }, 0);
             };
 
             const getPlayerKey = (playerNumber) => `${practiceDate}-${playerNumber}`;
@@ -109,6 +139,14 @@
                 const key = getPlayerKey(playerNumber);
                 return playerStats[key]?.[stat] || 0;
             }, [playerStats, practiceDate]);
+
+            // Get current total for selected player
+            const getCurrentTotal = () => {
+                if (selectedPlayer === null) return 0;
+                const key = getPlayerKey(selectedPlayer);
+                const stats = playerStats[key] || {};
+                return calculateTotal(stats);
+            };
 
             // Load existing data from Firebase for the current practice date
             const loadExistingData = useCallback(async () => {
@@ -234,11 +272,14 @@
 
             const StatSpinner = ({ playerNumber, stat, category }) => {
                 const value = getStatValue(playerNumber, stat);
-                const isNegativeStat = ['Turnover', 'Foul', 'No Crash/Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language'].includes(stat);
+                const isNegativeStat = ['Turnover', 'Foul', 'No Crash Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language'].includes(stat);
+                const hasValue = value > 0;
                 
                 return React.createElement('div', {
                     className: `flex items-center justify-between p-3 rounded-lg border ${
-                        isNegativeStat 
+                        !hasValue 
+                            ? 'bg-gray-200 border-gray-300' 
+                            : isNegativeStat 
                             ? darkMode ? 'bg-red-900/50 border-red-800' : 'bg-red-50 border-red-200'
                             : darkMode ? 'bg-green-900/50 border-green-800' : 'bg-green-50 border-green-200'
                     }`
@@ -246,7 +287,9 @@
                     React.createElement('div', { className: "flex-1", key: "label" }, [
                         React.createElement('div', {
                             className: `text-sm font-medium ${
-                                isNegativeStat 
+                                !hasValue 
+                                    ? 'text-gray-600'
+                                    : isNegativeStat 
                                     ? darkMode ? 'text-red-300' : 'text-red-800'
                                     : darkMode ? 'text-green-300' : 'text-green-800'
                             }`,
@@ -268,7 +311,9 @@
                         }, '−'),
                         React.createElement('div', {
                             className: `w-12 text-center font-bold text-lg ${
-                                isNegativeStat 
+                                !hasValue 
+                                    ? 'text-gray-600'
+                                    : isNegativeStat 
                                     ? darkMode ? 'text-red-300' : 'text-red-700'
                                     : darkMode ? 'text-green-300' : 'text-green-700'
                             }`,
@@ -371,9 +416,14 @@
                 // Stats Input or Empty State
                 selectedPlayer !== null ? 
                     React.createElement('div', { className: `rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "stats" }, [
-                        React.createElement('h2', { className: `text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}` }, 
-                            `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
-                        ),
+                        React.createElement('div', { className: "flex justify-between items-center mb-4", key: "stats-header" }, [
+                            React.createElement('h2', { className: `text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 
+                                `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
+                            ),
+                            React.createElement('div', { className: `text-xl font-bold ${getCurrentTotal() > 0 ? 'text-green-500' : getCurrentTotal() < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}` }, 
+                                `Total: ${getCurrentTotal()}`
+                            )
+                        ]),
                         React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
                             Object.entries(hustleStats).map(([category, stats]) =>
                                 React.createElement('div', { key: category, className: "space-y-3" }, [
