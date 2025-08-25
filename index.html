@@ -96,7 +96,7 @@
                 ],
                 "Defensive": [
                     "Steal", "Deflection", "Charge Drawn", "Foul", 
-                    "No Crash/Get Back", "Missed Close Out", "Missed Box Out"
+                    "No Crash-Get Back", "Missed Close Out", "Missed Box Out"
                 ],
                 "Intangibles": [
                     "Hustle Play", "Body Language", "Coach's Point"
@@ -119,7 +119,7 @@
                 // Negative stats
                 'Turnover': -1,
                 'Foul': -1,
-                'No Crash/Get Back': -1,
+                'No Crash-Get Back': -1,
                 'Missed Close Out': -1,
                 'Missed Box Out': -1,
                 'Body Language': -1
@@ -272,7 +272,7 @@
 
             const StatSpinner = ({ playerNumber, stat, category }) => {
                 const value = getStatValue(playerNumber, stat);
-                const isNegativeStat = ['Turnover', 'Foul', 'No Crash/Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language'].includes(stat);
+                const isNegativeStat = ['Turnover', 'Foul', 'No Crash-Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language'].includes(stat);
                 const hasValue = value > 0;
                 
                 return React.createElement('div', {
