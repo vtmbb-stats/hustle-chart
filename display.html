@@ -87,7 +87,7 @@
                 'Assist': 1,
                 'Extra Pass': 1,
                 'Screen Assist': 1,
-                'Gretzky': 1,
+                'Hokie Assist': 1,
                 'Steal': 1,
                 'Deflection': 1,
                 'Charge Drawn': 5,
@@ -471,7 +471,7 @@
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-60`, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-72`, onClick: () => setSortCol('name') }, 'Player'),
                                     React.createElement('th', { 
                                         className: `px-4 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20 ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
                                         onClick: () => setSortCol('Total')
