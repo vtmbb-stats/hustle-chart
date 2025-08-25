@@ -69,7 +69,7 @@
             const [sortColumn, setSortColumn] = useState('Total');
             const [loading, setLoading] = useState(true);
             const [lastUpdated, setLastUpdated] = useState(null);
-            const [loadingData, setLoadingData] = useState(false);
+            const [autoRefresh, setAutoRefresh] = useState(true);
 
             // All stats and their point values for Total calculation
             const statWeights = {
@@ -78,7 +78,7 @@
                 'Assist': 1,
                 'Extra Pass': 1,
                 'Screen Assist': 1,
-                'Gretzky': 1,
+                'Hokie Assist': 1,
                 'Steal': 1,
                 'Deflection': 1,
                 'Charge Drawn': 5,
@@ -121,53 +121,6 @@
             // Calculate total score for a player's stats
             const calculateTotal = (stats) => {
                 return allStats.reduce((total, stat) => {
-                    const value = stats[stat] || 0;
-                    return total + (value * statWeights[stat]);
-                }, 0);
-            };
-
-            // Load season data from Firebase
-            const loadSeasonData = useCallback(async () => {
-                try {
-                    setLoadingData(true);
-                    
-                    // Get all practice summaries
-                    const practicesSnapshot = await db.collection('practiceSummaries')
-                        .orderBy('practiceDate', 'desc')
-                        .get();
-                    
-                    if (practicesSnapshot.empty) {
-                        console.log('No practice data found');
-                        setLastUpdated(new Date().toLocaleString());
-                        return;
-                    }
-
-                    const practicesData = [];
-                    practicesSnapshot.forEach(doc => {
-                        const data = doc.data();
-                        practicesData.push({
-                            date: data.practiceDate,
-                            playerStats: data.playerStats || {}
-                        });
-                    });
-
-                    // Aggregate all practices for season totals
-                    const seasonStats = {};
-                    practicesData.forEach(practice => {
-                        Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
-                            if (!seasonStats[playerKey]) {
-                                seasonStats[playerKey] = {};
-                                allStats.forEach(stat => {
-                                    seasonStats[playerKey][stat] = 0;
-                                });
-                            }
-                            
-                            allStats.forEach(stat => {
-                                seasonStats[playerKey][stat] = (seasonStats[playerKey][stat] || 0) + (stats[stat] || 0);
-                            });
-                        });
-                    });
-
                     const seasonProcessed = processPlayerData(seasonStats, 'Season Total');
                     setSeasonData(seasonProcessed);
 
@@ -175,7 +128,6 @@
                 } catch (error) {
                     console.error('Error loading data:', error);
                 } finally {
-                    setLoadingData(false);
                     setLoading(false);
                 }
             }, []);
@@ -226,6 +178,17 @@
                 loadSeasonData();
             }, [loadSeasonData]);
 
+            // Auto-refresh every 30 seconds
+            useEffect(() => {
+                if (!autoRefresh) return;
+
+                const interval = setInterval(() => {
+                    loadSeasonData();
+                }, 30000); // 30 seconds
+
+                return () => clearInterval(interval);
+            }, [loadSeasonData, autoRefresh]);
+
             if (loading) {
                 return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
                     React.createElement('div', { className: 'animate-pulse space-y-4' }, [
@@ -254,12 +217,18 @@
                                 className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
                             }, darkMode ? '☀️ Light' : '🌙 Dark'),
                             React.createElement('button', {
-                                onClick: loadSeasonData,
-                                disabled: loadingData,
-                                className: `px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${loadingData ? 'bg-gray-400 cursor-not-allowed' : darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`
+                                onClick: () => setAutoRefresh(prev => !prev),
+                                className: `px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${autoRefresh ? (darkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600') : (darkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400 hover:bg-gray-500')} text-white`
                             }, [
-                                loadingData ? React.createElement('div', { className: 'animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full' }) : '🔄',
-                                loadingData ? 'Loading...' : 'Refresh Data'
+                                autoRefresh ? '⏸️' : '▶️',
+                                autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'
+                            ]),
+                            React.createElement('button', {
+                                onClick: loadSeasonData,
+                                className: `px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`
+                            }, [
+                                '🔄',
+                                'Refresh Now'
                             ]),
                             lastUpdated && React.createElement('div', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, [
                                 React.createElement('div', {}, 'Last updated:'),
@@ -279,7 +248,7 @@
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-60`, onClick: () => setSortColumn('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-72`, onClick: () => setSortColumn('name') }, 'Player'),
                                     React.createElement('th', { 
                                         className: `px-4 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20 ${sortColumn === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
                                         onClick: () => setSortColumn('Total')
@@ -321,4 +290,49 @@
         ReactDOM.render(React.createElement(SeasonStatsDisplay), document.getElementById('root'));
     </script>
 </body>
-</html>
+</html> value = stats[stat] || 0;
+                    return total + (value * statWeights[stat]);
+                }, 0);
+            };
+
+            // Load season data from Firebase
+            const loadSeasonData = useCallback(async () => {
+                try {
+                    // Get all practice summaries
+                    const practicesSnapshot = await db.collection('practiceSummaries')
+                        .orderBy('practiceDate', 'desc')
+                        .get();
+                    
+                    if (practicesSnapshot.empty) {
+                        console.log('No practice data found');
+                        setLastUpdated(new Date().toLocaleString());
+                        return;
+                    }
+
+                    const practicesData = [];
+                    practicesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        practicesData.push({
+                            date: data.practiceDate,
+                            playerStats: data.playerStats || {}
+                        });
+                    });
+
+                    // Aggregate all practices for season totals
+                    const seasonStats = {};
+                    practicesData.forEach(practice => {
+                        Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                            if (!seasonStats[playerKey]) {
+                                seasonStats[playerKey] = {};
+                                allStats.forEach(stat => {
+                                    seasonStats[playerKey][stat] = 0;
+                                });
+                            }
+                            
+                            allStats.forEach(stat => {
+                                seasonStats[playerKey][stat] = (seasonStats[playerKey][stat] || 0) + (stats[stat] || 0);
+                            });
+                        });
+                    });
+
+                    const
