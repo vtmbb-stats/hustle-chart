@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Men's Basketball Season Stats</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        
+        .dark-mode {
+            background-color: #111827 !important;
+        }
+        
+        .light-mode {
+            background-color: #f9fafb !important;
+        }
+
+        .table-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="light-mode">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useCallback, useEffect } = React;
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDabJZx_x3SJEYk1dWwHJw0wUsp48yUWxc",
+            authDomain: "vtmbb-hustle-chart.firebaseapp.com",
+            projectId: "vtmbb-hustle-chart",
+            storageBucket: "vtmbb-hustle-chart.firebasestorage.app",
+            messagingSenderId: "210232739134",
+            appId: "1:210232739134:web:78ed344affb9f8c0ba586f"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const SeasonStatsDisplay = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [seasonData, setSeasonData] = useState(null);
+            const [sortColumn, setSortColumn] = useState('Total');
+            const [loading, setLoading] = useState(true);
+            const [lastUpdated, setLastUpdated] = useState(null);
+            const [loadingData, setLoadingData] = useState(false);
+
+            // All stats and their point values for Total calculation
+            const statWeights = {
+                // Positive stats
+                'Offensive Rebound': 1,
+                'Assist': 1,
+                'Extra Pass': 1,
+                'Screen Assist': 1,
+                'Gretzky': 1,
+                'Steal': 1,
+                'Deflection': 1,
+                'Charge Drawn': 5,
+                'Hustle Play': 1,
+                'Coach\'s Point': 1,
+                // Negative stats
+                'Turnover': -1,
+                'Foul': -1,
+                'No Crash/Get Back': -1,
+                'Missed Close Out': -1,
+                'Missed Box Out': -1,
+                'Body Language': -1
+            };
+
+            const allStats = Object.keys(statWeights);
+
+            // Player roster
+            const players = [
+                { number: 0, lastName: "Bedford", firstName: "Jailen" },
+                { number: 1, lastName: "Lawal", firstName: "Tobi" },
+                { number: 2, lastName: "Schutt", firstName: "Jaden" },
+                { number: 3, lastName: "Hammond", firstName: "Ben" },
+                { number: 4, lastName: "Pasha", firstName: "Izaiah" },
+                { number: 5, lastName: "Jones", firstName: "Sin'Cere" },
+                { number: 7, lastName: "Freeman", firstName: "Brett" },
+                { number: 10, lastName: "Johnson", firstName: "Tyler" },
+                { number: 13, lastName: "Hansberry", firstName: "Amani" },
+                { number: 15, lastName: "Peterkin", firstName: "Snook" },
+                { number: 17, lastName: "Avdalas", firstName: "Neo" },
+                { number: 22, lastName: "Davis", firstName: "Solomon" },
+                { number: 32, lastName: "Gurdak", firstName: "Christian" },
+                { number: 77, lastName: "Dorn", firstName: "Antonio" }
+            ];
+
+            // Update body class when dark mode changes
+            useEffect(() => {
+                document.body.className = darkMode ? 'dark-mode' : 'light-mode';
+            }, [darkMode]);
+
+            // Calculate total score for a player's stats
+            const calculateTotal = (stats) => {
+                return allStats.reduce((total, stat) => {
+                    const value = stats[stat] || 0;
+                    return total + (value * statWeights[stat]);
+                }, 0);
+            };
+
+            // Load season data from Firebase
+            const loadSeasonData = useCallback(async () => {
+                try {
+                    setLoadingData(true);
+                    
+                    // Get all practice summaries
+                    const practicesSnapshot = await db.collection('practiceSummaries')
+                        .orderBy('practiceDate', 'desc')
+                        .get();
+                    
+                    if (practicesSnapshot.empty) {
+                        console.log('No practice data found');
+                        setLastUpdated(new Date().toLocaleString());
+                        return;
+                    }
+
+                    const practicesData = [];
+                    practicesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        practicesData.push({
+                            date: data.practiceDate,
+                            playerStats: data.playerStats || {}
+                        });
+                    });
+
+                    // Aggregate all practices for season totals
+                    const seasonStats = {};
+                    practicesData.forEach(practice => {
+                        Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                            if (!seasonStats[playerKey]) {
+                                seasonStats[playerKey] = {};
+                                allStats.forEach(stat => {
+                                    seasonStats[playerKey][stat] = 0;
+                                });
+                            }
+                            
+                            allStats.forEach(stat => {
+                                seasonStats[playerKey][stat] = (seasonStats[playerKey][stat] || 0) + (stats[stat] || 0);
+                            });
+                        });
+                    });
+
+                    const seasonProcessed = processPlayerData(seasonStats, 'Season Total');
+                    setSeasonData(seasonProcessed);
+
+                    setLastUpdated(new Date().toLocaleString());
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                } finally {
+                    setLoadingData(false);
+                    setLoading(false);
+                }
+            }, []);
+
+            // Process player data into display format
+            const processPlayerData = (playerStats, dateLabel) => {
+                const processed = players.map(player => {
+                    const playerKey = `player_${player.number}`;
+                    const stats = playerStats[playerKey] || {};
+                    
+                    const playerData = {
+                        number: player.number,
+                        name: `${player.firstName} ${player.lastName}`,
+                        lastName: player.lastName,
+                        ...stats
+                    };
+                    
+                    // Add missing stats as 0
+                    allStats.forEach(stat => {
+                        if (!(stat in playerData)) {
+                            playerData[stat] = 0;
+                        }
+                    });
+                    
+                    playerData.Total = calculateTotal(stats);
+                    
+                    return playerData;
+                });
+
+                return {
+                    date: dateLabel,
+                    players: processed.sort((a, b) => b.Total - a.Total)
+                };
+            };
+
+            // Sort function for table
+            const sortPlayers = (players, column) => {
+                return [...players].sort((a, b) => {
+                    if (column === 'name') {
+                        return a.lastName.localeCompare(b.lastName);
+                    }
+                    return b[column] - a[column];
+                });
+            };
+
+            // Initial load
+            useEffect(() => {
+                loadSeasonData();
+            }, [loadSeasonData]);
+
+            if (loading) {
+                return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
+                    React.createElement('div', { className: 'animate-pulse space-y-4' }, [
+                        React.createElement('div', { className: 'h-8 bg-gray-300 rounded w-1/3' }),
+                        React.createElement('div', { className: 'h-64 bg-gray-300 rounded' })
+                    ])
+                ]);
+            }
+
+            if (!seasonData) {
+                return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
+                    React.createElement('div', { className: `text-center py-16 ${darkMode ? 'text-gray-400' : 'text-gray-500'}` }, 'No season data available')
+                ]);
+            }
+
+            const sortedPlayers = sortPlayers(seasonData.players, sortColumn);
+
+            return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
+                // Header
+                React.createElement('div', { className: `rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "header" }, [
+                    React.createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4" }, [
+                        React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball - Season Stats"),
+                        React.createElement('div', { className: "flex items-center gap-4" }, [
+                            React.createElement('button', {
+                                onClick: () => setDarkMode(prev => !prev),
+                                className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
+                            }, darkMode ? '☀️ Light' : '🌙 Dark'),
+                            React.createElement('button', {
+                                onClick: loadSeasonData,
+                                disabled: loadingData,
+                                className: `px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${loadingData ? 'bg-gray-400 cursor-not-allowed' : darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`
+                            }, [
+                                loadingData ? React.createElement('div', { className: 'animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full' }) : '🔄',
+                                loadingData ? 'Loading...' : 'Refresh Data'
+                            ]),
+                            lastUpdated && React.createElement('div', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, [
+                                React.createElement('div', {}, 'Last updated:'),
+                                React.createElement('div', { className: 'font-medium' }, lastUpdated)
+                            ])
+                        ])
+                    ])
+                ]),
+
+                // Season Stats Table
+                React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "table" }, [
+                    React.createElement('div', { className: 'p-4 border-b', key: 'header' }, [
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Season Total'),
+                        React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, seasonData.date)
+                    ]),
+                    React.createElement('div', { className: 'overflow-x-auto', key: 'table-container' }, [
+                        React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
+                            React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
+                                React.createElement('tr', {}, [
+                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-60`, onClick: () => setSortColumn('name') }, 'Player'),
+                                    React.createElement('th', { 
+                                        className: `px-4 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20 ${sortColumn === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
+                                        onClick: () => setSortColumn('Total')
+                                    }, 'Total'),
+                                    ...allStats.map(stat => 
+                                        React.createElement('th', { 
+                                            key: stat, 
+                                            className: `px-2 py-2 text-center cursor-pointer hover:bg-gray-600 min-w-12 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
+                                            onClick: () => setSortColumn(stat)
+                                        }, stat.replace(/ /g, ' '))
+                                    )
+                                ])
+                            ]),
+                            React.createElement('tbody', { key: 'tbody' },
+                                sortedPlayers.map((player, index) =>
+                                    React.createElement('tr', {
+                                        key: player.number,
+                                        className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
+                                    }, [
+                                        React.createElement('td', { className: `px-4 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}` }, player.name),
+                                        React.createElement('td', { className: `px-4 py-1 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}` }, player.Total),
+                                        ...allStats.map(stat => {
+                                            const value = player[stat] || 0;
+                                            const isNegative = statWeights[stat] < 0;
+                                            return React.createElement('td', { 
+                                                key: stat, 
+                                                className: `px-2 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
+                                            }, value > 0 ? value : '');
+                                        })
+                                    ])
+                                )
+                            )
+                        ])
+                    ])
+                ])
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(SeasonStatsDisplay), document.getElementById('root'));
+    </script>
+</body>
+</html>
