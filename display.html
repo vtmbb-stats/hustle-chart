@@ -130,4 +130,510 @@
                 document.body.className = darkMode ? 'dark-mode' : 'light-mode';
             }, [darkMode]);
 
-            // Calculate total score for a
+            // Calculate total score for a player's stats
+            const calculateTotal = (stats) => {
+                return allStats.reduce((total, stat) => {
+                    const value = stats[stat] || 0;
+                    return total + (value * statWeights[stat]);
+                }, 0);
+            };
+
+            // Load data from Firebase
+            const loadData = useCallback(async () => {
+                try {
+                    setLoadingData(true);
+                    
+                    // Get all practice summaries
+                    const practicesSnapshot = await db.collection('practiceSummaries')
+                        .orderBy('practiceDate', 'desc')
+                        .get();
+                    
+                    if (practicesSnapshot.empty) {
+                        console.log('No practice data found');
+                        setLastUpdated(new Date().toLocaleString());
+                        return;
+                    }
+
+                    const practicesData = [];
+                    practicesSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        practicesData.push({
+                            date: data.practiceDate,
+                            playerStats: data.playerStats || {}
+                        });
+                    });
+
+                    // Store all practices data
+                    setAllPracticesData(practicesData);
+
+                    // Process main table data based on current period selection
+                    updateMainTableData(practicesData, mainTablePeriod);
+
+                    // Calculate trending players based on season total change over last 5 practices
+                    await calculateTrending(practicesData);
+
+                    setLastUpdated(new Date().toLocaleString());
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                } finally {
+                    setLoadingData(false);
+                    setLoading(false);
+                }
+            }, [mainTablePeriod]);
+
+            // Update main table data based on period selection
+            const updateMainTableData = (practicesData, period) => {
+                let dataToProcess = {};
+                let label = '';
+
+                switch (period) {
+                    case 'recent':
+                        if (practicesData.length > 0) {
+                            dataToProcess = practicesData[0].playerStats;
+                            label = practicesData[0].date;
+                        }
+                        break;
+                    case 'last5':
+                        const last5 = practicesData.slice(0, 5);
+                        dataToProcess = aggregatePracticesData(last5);
+                        label = `Last ${last5.length} Practice${last5.length > 1 ? 's' : ''}`;
+                        break;
+                    case 'season':
+                        dataToProcess = aggregatePracticesData(practicesData);
+                        label = 'Season Total';
+                        break;
+                }
+
+                const processed = processPlayerData(dataToProcess, label);
+                setMainTableData(processed);
+            };
+
+            // Helper function to aggregate multiple practices
+            const aggregatePracticesData = (practices) => {
+                const aggregated = {};
+                practices.forEach(practice => {
+                    Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                        if (!aggregated[playerKey]) {
+                            aggregated[playerKey] = {};
+                            allStats.forEach(stat => {
+                                aggregated[playerKey][stat] = 0;
+                            });
+                        }
+                        
+                        allStats.forEach(stat => {
+                            aggregated[playerKey][stat] = (aggregated[playerKey][stat] || 0) + (stats[stat] || 0);
+                        });
+                    });
+                });
+                return aggregated;
+            };
+
+            // Update main table when period changes
+            useEffect(() => {
+                if (allPracticesData.length > 0) {
+                    updateMainTableData(allPracticesData, mainTablePeriod);
+                }
+            }, [mainTablePeriod, allPracticesData]);
+
+            // Process player data into display format
+            const processPlayerData = (playerStats, dateLabel) => {
+                const processed = players.map(player => {
+                    const playerKey = `player_${player.number}`;
+                    const stats = playerStats[playerKey] || {};
+                    
+                    const playerData = {
+                        number: player.number,
+                        name: `${player.firstName} ${player.lastName}`,
+                        lastName: player.lastName,
+                        ...stats
+                    };
+                    
+                    // Add missing stats as 0
+                    allStats.forEach(stat => {
+                        if (!(stat in playerData)) {
+                            playerData[stat] = 0;
+                        }
+                    });
+                    
+                    playerData.Total = calculateTotal(stats);
+                    
+                    return playerData;
+                });
+
+                return {
+                    date: dateLabel,
+                    players: processed.sort((a, b) => b.Total - a.Total)
+                };
+            };
+
+            // Calculate trending players based on change in season total over last 5 practices
+            const calculateTrending = async (practicesData) => {
+                try {
+                    if (practicesData.length < 5) {
+                        setTrendingData({ up: [], down: [] });
+                        return;
+                    }
+
+                    // Only use the last 5 practices
+                    const last5Practices = practicesData.slice(0, 5);
+                    const playerTrends = [];
+
+                    players.forEach(player => {
+                        const playerKey = `player_${player.number}`;
+                        
+                        // Calculate cumulative season totals at each point
+                        let currentSeasonTotal = 0;
+                        let oldestSeasonTotal = 0;
+                        
+                        // Go through all practices to build up to the 5th most recent
+                        for (let i = practicesData.length - 1; i >= 0; i--) {
+                            const practice = practicesData[i];
+                            const stats = practice.playerStats[playerKey] || {};
+                            const practiceScore = calculateTotal(stats);
+                            
+                            // If this is the 5th most recent practice (oldest of our 5)
+                            if (i === 4) {
+                                oldestSeasonTotal = currentSeasonTotal + practiceScore;
+                            }
+                            
+                            currentSeasonTotal += practiceScore;
+                            
+                            // If this is the most recent practice
+                            if (i === 0) {
+                                break;
+                            }
+                        }
+                        
+                        // Calculate the change in season total over the last 5 practices
+                        const seasonTotalChange = currentSeasonTotal - oldestSeasonTotal;
+                        
+                        playerTrends.push({
+                            name: `${player.firstName} ${player.lastName}`,
+                            seasonTotalChange,
+                            currentSeasonTotal,
+                            oldestSeasonTotal,
+                            number: player.number
+                        });
+                    });
+
+                    // Sort by season total change descending
+                    const sorted = playerTrends.sort((a, b) => b.seasonTotalChange - a.seasonTotalChange);
+                    
+                    // Get top 3 trending up and bottom 3 trending down
+                    const trendingUp = sorted.slice(0, 3).filter(p => p.seasonTotalChange > 0);
+                    const trendingDown = sorted.slice(-3).reverse().filter(p => p.seasonTotalChange < 0);
+                    
+                    setTrendingData({
+                        up: trendingUp,
+                        down: trendingDown
+                    });
+                } catch (error) {
+                    console.error('Error calculating trending data:', error);
+                }
+            };
+
+            // Sort function for tables
+            const sortPlayers = (players, column) => {
+                return [...players].sort((a, b) => {
+                    if (column === 'name') {
+                        return a.lastName.localeCompare(b.lastName);
+                    }
+                    return b[column] - a[column];
+                });
+            };
+
+            // Load chart data for selected player
+            const loadPlayerChart = useCallback(async () => {
+                if (!selectedPlayer || allPracticesData.length === 0) {
+                    setChartData(null);
+                    return;
+                }
+
+                try {
+                    const chartPoints = [];
+                    
+                    // Get practices in chronological order for chart
+                    const orderedPractices = [...allPracticesData].reverse();
+                    
+                    orderedPractices.forEach(practice => {
+                        const playerKey = `player_${selectedPlayer}`;
+                        const stats = practice.playerStats?.[playerKey] || {};
+                        const total = calculateTotal(stats);
+                        
+                        chartPoints.push({
+                            date: practice.date,
+                            total: total
+                        });
+                    });
+
+                    // Filter by period based on number of practices
+                    let filteredPoints = chartPoints;
+                    if (selectedPeriod !== 'season' && chartPoints.length > 0) {
+                        const numPractices = selectedPeriod === 'last10' ? 10 : 5;
+                        filteredPoints = chartPoints.slice(-numPractices);
+                    }
+
+                    setChartData(filteredPoints);
+                } catch (error) {
+                    console.error('Error loading chart data:', error);
+                }
+            }, [selectedPlayer, selectedPeriod, allPracticesData]);
+
+            useEffect(() => {
+                loadPlayerChart();
+            }, [loadPlayerChart]);
+
+            // Create/update chart
+            useEffect(() => {
+                if (!chartData || !chartRef.current) return;
+
+                const ctx = chartRef.current.getContext('2d');
+                
+                // Destroy existing chart
+                if (chartInstance.current) {
+                    chartInstance.current.destroy();
+                }
+
+                chartInstance.current = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.map(point => point.date),
+                        datasets: [{
+                            label: 'Hustle Score',
+                            data: chartData.map(point => point.total),
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: darkMode ? '#fff' : '#374151'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: darkMode ? '#9CA3AF' : '#6B7280'
+                                },
+                                grid: {
+                                    color: darkMode ? '#374151' : '#E5E7EB'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: darkMode ? '#9CA3AF' : '#6B7280'
+                                },
+                                grid: {
+                                    color: darkMode ? '#374151' : '#E5E7EB'
+                                }
+                            }
+                        }
+                    }
+                });
+            }, [chartData, darkMode]);
+
+            // Initial load only
+            useEffect(() => {
+                loadData();
+            }, [loadData]);
+
+            const TableComponent = ({ data, sortCol, setSortCol, title, showDropdown = false }) => {
+                if (!data) return React.createElement('div', { className: 'animate-pulse h-64' });
+
+                const sortedPlayers = sortPlayers(data.players, sortCol);
+
+                return React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6` }, [
+                    React.createElement('div', { className: 'p-4 border-b', key: 'header' }, [
+                        React.createElement('div', { className: 'flex justify-between items-center' }, [
+                            React.createElement('div', {}, [
+                                React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, title),
+                                React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
+                            ]),
+                            showDropdown && React.createElement('select', {
+                                value: mainTablePeriod,
+                                onChange: (e) => setMainTablePeriod(e.target.value),
+                                className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
+                            }, [
+                                React.createElement('option', { value: 'recent' }, 'Most Recent Practice'),
+                                React.createElement('option', { value: 'last5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'season' }, 'Full Season')
+                            ])
+                        ])
+                    ]),
+                    React.createElement('div', { className: 'overflow-x-auto', key: 'table' }, [
+                        React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
+                            React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
+                                React.createElement('tr', {}, [
+                                    React.createElement('th', { className: `px-4 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-72`, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { 
+                                        className: `px-4 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20 ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
+                                        onClick: () => setSortCol('Total')
+                                    }, 'Total'),
+                                    ...allStats.map(stat => 
+                                        React.createElement('th', { 
+                                            key: stat, 
+                                            className: `px-2 py-2 text-center cursor-pointer hover:bg-gray-600 min-w-12 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
+                                            onClick: () => setSortCol(stat)
+                                        }, stat.replace(/ /g, ' '))
+                                    )
+                                ])
+                            ]),
+                            React.createElement('tbody', { key: 'tbody' },
+                                sortedPlayers.map((player, index) =>
+                                    React.createElement('tr', {
+                                        key: player.number,
+                                        className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
+                                    }, [
+                                        React.createElement('td', { className: `px-4 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}` }, player.name),
+                                        React.createElement('td', { className: `px-4 py-1 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}` }, player.Total),
+                                        ...allStats.map(stat => {
+                                            const value = player[stat] || 0;
+                                            const isNegative = statWeights[stat] < 0;
+                                            return React.createElement('td', { 
+                                                key: stat, 
+                                                className: `px-2 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
+                                            }, value > 0 ? value : '');
+                                        })
+                                    ])
+                                )
+                            )
+                        ])
+                    ])
+                ]);
+            };
+
+            if (loading) {
+                return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
+                    React.createElement('div', { className: 'animate-pulse space-y-4' }, [
+                        React.createElement('div', { className: 'h-8 bg-gray-300 rounded w-1/3' }),
+                        React.createElement('div', { className: 'h-64 bg-gray-300 rounded' }),
+                        React.createElement('div', { className: 'h-64 bg-gray-300 rounded' })
+                    ])
+                ]);
+            }
+
+            return React.createElement('div', { className: 'max-w-7xl mx-auto p-4' }, [
+                // Header
+                React.createElement('div', { className: `rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "header" }, [
+                    React.createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4" }, [
+                        React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball - Hustle Display"),
+                        React.createElement('div', { className: "flex items-center gap-4" }, [
+                            React.createElement('button', {
+                                onClick: () => setDarkMode(prev => !prev),
+                                className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
+                            }, darkMode ? '☀️ Light' : '🌙 Dark'),
+                            React.createElement('button', {
+                                onClick: loadData,
+                                disabled: loadingData,
+                                className: `px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${loadingData ? 'bg-gray-400 cursor-not-allowed' : darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`
+                            }, [
+                                loadingData ? React.createElement('div', { className: 'animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full' }) : '🔄',
+                                loadingData ? 'Loading...' : 'Load Data'
+                            ]),
+                            lastUpdated && React.createElement('div', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, [
+                                React.createElement('div', {}, 'Last updated:'),
+                                React.createElement('div', { className: 'font-medium' }, lastUpdated)
+                            ])
+                        ])
+                    ])
+                ]),
+
+                // Main Table with dropdown
+                React.createElement(TableComponent, {
+                    key: 'main',
+                    data: mainTableData,
+                    sortCol: sortColumn,
+                    setSortCol: setSortColumn,
+                    title: 'Hustle Stats',
+                    showDropdown: true
+                }),
+
+                // Top/Bottom Trending
+                React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6`, key: 'trending' }, [
+                    React.createElement('div', { className: 'p-4 border-b' }, [
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Trending Players'),
+                        React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, 'Change in season total over last 5 practices')
+                    ]),
+                    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4 p-4' }, [
+                        React.createElement('div', { key: 'trending-up' }, [
+                            React.createElement('h3', { className: `text-lg font-semibold text-green-600 mb-2` }, 'Trending Up'),
+                            React.createElement('div', { className: 'space-y-2' },
+                                trendingData.up.map((player, index) =>
+                                    React.createElement('div', {
+                                        key: index,
+                                        className: `p-2 rounded ${darkMode ? 'bg-green-900/20' : 'bg-green-50'} border-l-4 border-green-500`
+                                    }, [
+                                        React.createElement('div', { className: `font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}` }, player.name),
+                                        React.createElement('div', { className: 'text-sm text-green-600' }, `+${player.seasonTotalChange} season total improvement`)
+                                    ])
+                                )
+                            )
+                        ]),
+                        React.createElement('div', { key: 'trending-down' }, [
+                            React.createElement('h3', { className: `text-lg font-semibold text-red-600 mb-2` }, 'Trending Down'),
+                            React.createElement('div', { className: 'space-y-2' },
+                                trendingData.down.map((player, index) =>
+                                    React.createElement('div', {
+                                        key: index,
+                                        className: `p-2 rounded ${darkMode ? 'bg-red-900/20' : 'bg-red-50'} border-l-4 border-red-500`
+                                    }, [
+                                        React.createElement('div', { className: `font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}` }, player.name),
+                                        React.createElement('div', { className: 'text-sm text-red-600' }, `${player.seasonTotalChange} season total decline`)
+                                    ])
+                                )
+                            )
+                        ])
+                    ])
+                ]),
+
+                // Custom Player Chart
+                React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: 'chart' }, [
+                    React.createElement('div', { className: 'p-4 border-b' }, [
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Player Trend Chart'),
+                        React.createElement('div', { className: 'flex gap-4 mt-2' }, [
+                            React.createElement('select', {
+                                value: selectedPlayer,
+                                onChange: (e) => setSelectedPlayer(e.target.value),
+                                className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
+                            }, [
+                                React.createElement('option', { value: '' }, 'Select Player'),
+                                ...players.map(player =>
+                                    React.createElement('option', {
+                                        key: player.number,
+                                        value: player.number
+                                    }, `${player.firstName} ${player.lastName}`)
+                                )
+                            ]),
+                            React.createElement('select', {
+                                value: selectedPeriod,
+                                onChange: (e) => setSelectedPeriod(e.target.value),
+                                className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
+                            }, [
+                                React.createElement('option', { value: 'last5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'last10' }, 'Last 10 Practices'),
+                                React.createElement('option', { value: 'season' }, 'Full Season')
+                            ])
+                        ])
+                    ]),
+                    React.createElement('div', { className: 'p-4' }, [
+                        selectedPlayer ? 
+                            React.createElement('div', { style: { height: '400px' } }, [
+                                React.createElement('canvas', { ref: chartRef })
+                            ]) :
+                            React.createElement('div', { className: `text-center py-16 ${darkMode ? 'text-gray-400' : 'text-gray-500'}` }, 'Select a player to view their trend chart')
+                    ])
+                ])
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(HustleDisplay), document.getElementById('root'));
+    </script>
+</body>
+</html>
