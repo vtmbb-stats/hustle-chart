@@ -66,17 +66,17 @@
 
         const HustleDisplay = () => {
             const [darkMode, setDarkMode] = useState(false);
-            const [recentPracticeData, setRecentPracticeData] = useState(null);
-            const [seasonData, setSeasonData] = useState(null);
+            const [mainTableData, setMainTableData] = useState(null);
             const [sortColumn, setSortColumn] = useState('Total');
-            const [seasonSortColumn, setSeasonSortColumn] = useState('Total');
+            const [mainTablePeriod, setMainTablePeriod] = useState('recent'); // recent, last5, season
             const [trendingData, setTrendingData] = useState({ up: [], down: [] });
             const [selectedPlayer, setSelectedPlayer] = useState('');
-            const [selectedPeriod, setSelectedPeriod] = useState('season');
+            const [selectedPeriod, setSelectedPeriod] = useState('last5'); // last5, last10, season
             const [chartData, setChartData] = useState(null);
             const [loading, setLoading] = useState(true);
             const [lastUpdated, setLastUpdated] = useState(null);
             const [loadingData, setLoadingData] = useState(false);
+            const [allPracticesData, setAllPracticesData] = useState([]);
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -96,7 +96,7 @@
                 // Negative stats
                 'Turnover': -1,
                 'Foul': -1,
-                'No Crash Get Back': -1,
+                'No Crash/Get Back': -1,
                 'Missed Close Out': -1,
                 'Missed Box Out': -1,
                 'Body Language': -1
@@ -163,33 +163,14 @@
                         });
                     });
 
-                    // Process recent practice (most recent by date)
-                    const recentPractice = practicesData[0];
-                    const recentProcessed = processPlayerData(recentPractice.playerStats, recentPractice.date);
-                    setRecentPracticeData(recentProcessed);
+                    // Store all practices data
+                    setAllPracticesData(practicesData);
 
-                    // Process season data (aggregate all practices)
-                    const seasonStats = {};
-                    practicesData.forEach(practice => {
-                        Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
-                            if (!seasonStats[playerKey]) {
-                                seasonStats[playerKey] = {};
-                                allStats.forEach(stat => {
-                                    seasonStats[playerKey][stat] = 0;
-                                });
-                            }
-                            
-                            allStats.forEach(stat => {
-                                seasonStats[playerKey][stat] = (seasonStats[playerKey][stat] || 0) + (stats[stat] || 0);
-                            });
-                        });
-                    });
-
-                    const seasonProcessed = processPlayerData(seasonStats, 'Season Total');
-                    setSeasonData(seasonProcessed);
+                    // Process main table data based on current period selection
+                    updateMainTableData(practicesData, mainTablePeriod);
 
                     // Calculate trending players based on season total change over last 5 practices
-                    await calculateTrending();
+                    await calculateTrending(practicesData);
 
                     setLastUpdated(new Date().toLocaleString());
                 } catch (error) {
@@ -198,7 +179,61 @@
                     setLoadingData(false);
                     setLoading(false);
                 }
-            }, []);
+            }, [mainTablePeriod]);
+
+            // Update main table data based on period selection
+            const updateMainTableData = (practicesData, period) => {
+                let dataToProcess = {};
+                let label = '';
+
+                switch (period) {
+                    case 'recent':
+                        if (practicesData.length > 0) {
+                            dataToProcess = practicesData[0].playerStats;
+                            label = practicesData[0].date;
+                        }
+                        break;
+                    case 'last5':
+                        const last5 = practicesData.slice(0, 5);
+                        dataToProcess = aggregatePracticesData(last5);
+                        label = `Last ${last5.length} Practice${last5.length > 1 ? 's' : ''}`;
+                        break;
+                    case 'season':
+                        dataToProcess = aggregatePracticesData(practicesData);
+                        label = 'Season Total';
+                        break;
+                }
+
+                const processed = processPlayerData(dataToProcess, label);
+                setMainTableData(processed);
+            };
+
+            // Helper function to aggregate multiple practices
+            const aggregatePracticesData = (practices) => {
+                const aggregated = {};
+                practices.forEach(practice => {
+                    Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                        if (!aggregated[playerKey]) {
+                            aggregated[playerKey] = {};
+                            allStats.forEach(stat => {
+                                aggregated[playerKey][stat] = 0;
+                            });
+                        }
+                        
+                        allStats.forEach(stat => {
+                            aggregated[playerKey][stat] = (aggregated[playerKey][stat] || 0) + (stats[stat] || 0);
+                        });
+                    });
+                });
+                return aggregated;
+            };
+
+            // Update main table when period changes
+            useEffect(() => {
+                if (allPracticesData.length > 0) {
+                    updateMainTableData(allPracticesData, mainTablePeriod);
+                }
+            }, [mainTablePeriod, allPracticesData]);
 
             // Process player data into display format
             const processPlayerData = (playerStats, dateLabel) => {
@@ -232,26 +267,12 @@
             };
 
             // Calculate trending players based on change in season total over last 5 practices
-            const calculateTrending = async () => {
+            const calculateTrending = async (practicesData) => {
                 try {
-                    // Get all practices ordered by date descending
-                    const practicesSnapshot = await db.collection('practiceSummaries')
-                        .orderBy('practiceDate', 'desc')
-                        .get();
-                    
-                    if (practicesSnapshot.empty || practicesSnapshot.size < 5) {
+                    if (practicesData.length < 5) {
                         setTrendingData({ up: [], down: [] });
                         return;
                     }
-
-                    const practicesData = [];
-                    practicesSnapshot.forEach(doc => {
-                        const data = doc.data();
-                        practicesData.push({
-                            date: data.practiceDate,
-                            playerStats: data.playerStats || {}
-                        });
-                    });
 
                     // Only use the last 5 practices
                     const last5Practices = practicesData.slice(0, 5);
@@ -323,45 +344,40 @@
 
             // Load chart data for selected player
             const loadPlayerChart = useCallback(async () => {
-                if (!selectedPlayer) {
+                if (!selectedPlayer || allPracticesData.length === 0) {
                     setChartData(null);
                     return;
                 }
 
                 try {
-                    const practicesSnapshot = await db.collection('practiceSummaries')
-                        .orderBy('practiceDate', 'asc')
-                        .get();
-                    
                     const chartPoints = [];
-                    practicesSnapshot.forEach(doc => {
-                        const data = doc.data();
+                    
+                    // Get practices in chronological order for chart
+                    const orderedPractices = [...allPracticesData].reverse();
+                    
+                    orderedPractices.forEach(practice => {
                         const playerKey = `player_${selectedPlayer}`;
-                        const stats = data.playerStats?.[playerKey] || {};
+                        const stats = practice.playerStats?.[playerKey] || {};
                         const total = calculateTotal(stats);
                         
                         chartPoints.push({
-                            date: data.practiceDate,
+                            date: practice.date,
                             total: total
                         });
                     });
 
-                    // Filter by period if needed
+                    // Filter by period based on number of practices
                     let filteredPoints = chartPoints;
                     if (selectedPeriod !== 'season' && chartPoints.length > 0) {
-                        const periodDays = selectedPeriod === 'month' ? 30 : 7;
-                        const cutoffDate = new Date();
-                        cutoffDate.setDate(cutoffDate.getDate() - periodDays);
-                        const cutoffStr = cutoffDate.toISOString().split('T')[0];
-                        
-                        filteredPoints = chartPoints.filter(point => point.date >= cutoffStr);
+                        const numPractices = selectedPeriod === 'last10' ? 10 : 5;
+                        filteredPoints = chartPoints.slice(-numPractices);
                     }
 
                     setChartData(filteredPoints);
                 } catch (error) {
                     console.error('Error loading chart data:', error);
                 }
-            }, [selectedPlayer, selectedPeriod]);
+            }, [selectedPlayer, selectedPeriod, allPracticesData]);
 
             useEffect(() => {
                 loadPlayerChart();
@@ -428,15 +444,28 @@
                 loadData();
             }, [loadData]);
 
-            const TableComponent = ({ data, sortCol, setSortCol, title }) => {
+            const TableComponent = ({ data, sortCol, setSortCol, title, showDropdown = false }) => {
                 if (!data) return React.createElement('div', { className: 'animate-pulse h-64' });
 
                 const sortedPlayers = sortPlayers(data.players, sortCol);
 
                 return React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6` }, [
                     React.createElement('div', { className: 'p-4 border-b', key: 'header' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, title),
-                        React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
+                        React.createElement('div', { className: 'flex justify-between items-center' }, [
+                            React.createElement('div', {}, [
+                                React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, title),
+                                React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
+                            ]),
+                            showDropdown && React.createElement('select', {
+                                value: mainTablePeriod,
+                                onChange: (e) => setMainTablePeriod(e.target.value),
+                                className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
+                            }, [
+                                React.createElement('option', { value: 'recent' }, 'Most Recent Practice'),
+                                React.createElement('option', { value: 'last5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'season' }, 'Full Season')
+                            ])
+                        ])
                     ]),
                     React.createElement('div', { className: 'overflow-x-auto', key: 'table' }, [
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
@@ -516,22 +545,14 @@
                     ])
                 ]),
 
-                // Recent Practice Table
+                // Main Table with dropdown
                 React.createElement(TableComponent, {
-                    key: 'recent',
-                    data: recentPracticeData,
+                    key: 'main',
+                    data: mainTableData,
                     sortCol: sortColumn,
                     setSortCol: setSortColumn,
-                    title: 'Most Recent Practice'
-                }),
-
-                // Season Total Table (same format as Recent Practice)
-                React.createElement(TableComponent, {
-                    key: 'season',
-                    data: seasonData,
-                    sortCol: seasonSortColumn,
-                    setSortCol: setSeasonSortColumn,
-                    title: 'Season Total'
+                    title: 'Hustle Stats',
+                    showDropdown: true
                 }),
 
                 // Top/Bottom Trending
@@ -595,9 +616,9 @@
                                 onChange: (e) => setSelectedPeriod(e.target.value),
                                 className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
                             }, [
-                                React.createElement('option', { value: 'season' }, 'Full Season'),
-                                React.createElement('option', { value: 'month' }, 'Last 30 Days'),
-                                React.createElement('option', { value: 'week' }, 'Last 7 Days')
+                                React.createElement('option', { value: 'last5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'last10' }, 'Last 10 Practices'),
+                                React.createElement('option', { value: 'season' }, 'Full Season')
                             ])
                         ])
                     ]),
