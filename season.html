@@ -71,7 +71,7 @@
             const [lastUpdated, setLastUpdated] = useState(null);
             const [autoRefresh, setAutoRefresh] = useState(true);
 
-            // All stats and their point values for Total calculation
+            // All stats and their point values for Total calculation (must match input chart exactly)
             const statWeights = {
                 // Positive stats
                 'Offensive Rebound': 1,
@@ -87,7 +87,7 @@
                 // Negative stats
                 'Turnover': -1,
                 'Foul': -1,
-                'No Crash/Get Back': -1,
+                'No Crash-Get Back': -1,
                 'Missed Close Out': -1,
                 'Missed Box Out': -1,
                 'Body Language': -1
