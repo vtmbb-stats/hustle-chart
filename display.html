@@ -76,6 +76,7 @@
             const [recentPracticeView, setRecentPracticeView] = useState('most-recent');
             const [chartData, setChartData] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [lastUpdated, setLastUpdated] = useState(null);
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -254,6 +255,8 @@
                     setSeasonData(seasonProcessed);
 
                     calculateTrending(practicesData);
+
+                    setLastUpdated(new Date().toLocaleString());
 
                 } catch (error) {
                     console.error('Error loading data:', error);
@@ -525,10 +528,20 @@
                 React.createElement('div', { className: `rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "header" }, [
                     React.createElement('div', { className: "flex justify-between items-center" }, [
                         React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball - Hustle Display"),
-                        React.createElement('button', {
-                            onClick: () => setDarkMode(prev => !prev),
-                            className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
-                        }, darkMode ? 'Light' : 'Dark')
+                        React.createElement('div', { className: "flex items-center gap-4" }, [
+                            React.createElement('button', {
+                                onClick: loadData,
+                                className: `px-4 py-2 rounded-md transition-colors ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`
+                            }, 'Refresh'),
+                            React.createElement('button', {
+                                onClick: () => setDarkMode(prev => !prev),
+                                className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
+                            }, darkMode ? 'Light' : 'Dark'),
+                            lastUpdated && React.createElement('div', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, [
+                                React.createElement('div', { key: 'label' }, 'Last updated:'),
+                                React.createElement('div', { className: 'font-medium', key: 'time' }, lastUpdated)
+                            ])
+                        ])
                     ])
                 ]),
 
