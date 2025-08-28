@@ -73,6 +73,7 @@
             const [trendingData, setTrendingData] = useState({ up: [], down: [] });
             const [selectedPlayer, setSelectedPlayer] = useState('');
             const [selectedPeriod, setSelectedPeriod] = useState('season');
+            const [recentPracticeView, setRecentPracticeView] = useState('most-recent');
             const [chartData, setChartData] = useState(null);
             const [loading, setLoading] = useState(true);
             const chartRef = useRef(null);
@@ -133,12 +134,84 @@
                 }, 0);
             };
 
+            // Process recent practice data based on view selection
+            const processRecentPracticeData = useCallback((practicesData) => {
+                if (!practicesData || practicesData.length === 0) return null;
+
+                let dataToProcess = {};
+                let dateLabel = '';
+
+                switch(recentPracticeView) {
+                    case 'most-recent':
+                        dataToProcess = practicesData[0].playerStats;
+                        dateLabel = practicesData[0].date;
+                        break;
+                    case 'last-5':
+                        const last5 = practicesData.slice(0, Math.min(5, practicesData.length));
+                        dataToProcess = {};
+                        last5.forEach(practice => {
+                            Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                                if (!dataToProcess[playerKey]) {
+                                    dataToProcess[playerKey] = {};
+                                    allStats.forEach(stat => {
+                                        dataToProcess[playerKey][stat] = 0;
+                                    });
+                                }
+                                allStats.forEach(stat => {
+                                    dataToProcess[playerKey][stat] = (dataToProcess[playerKey][stat] || 0) + (stats[stat] || 0);
+                                });
+                            });
+                        });
+                        dateLabel = `Last ${last5.length} Practices`;
+                        break;
+                    case 'last-10':
+                        const last10 = practicesData.slice(0, Math.min(10, practicesData.length));
+                        dataToProcess = {};
+                        last10.forEach(practice => {
+                            Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                                if (!dataToProcess[playerKey]) {
+                                    dataToProcess[playerKey] = {};
+                                    allStats.forEach(stat => {
+                                        dataToProcess[playerKey][stat] = 0;
+                                    });
+                                }
+                                allStats.forEach(stat => {
+                                    dataToProcess[playerKey][stat] = (dataToProcess[playerKey][stat] || 0) + (stats[stat] || 0);
+                                });
+                            });
+                        });
+                        dateLabel = `Last ${last10.length} Practices`;
+                        break;
+                    case 'season':
+                        dataToProcess = {};
+                        practicesData.forEach(practice => {
+                            Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
+                                if (!dataToProcess[playerKey]) {
+                                    dataToProcess[playerKey] = {};
+                                    allStats.forEach(stat => {
+                                        dataToProcess[playerKey][stat] = 0;
+                                    });
+                                }
+                                allStats.forEach(stat => {
+                                    dataToProcess[playerKey][stat] = (dataToProcess[playerKey][stat] || 0) + (stats[stat] || 0);
+                                });
+                            });
+                        });
+                        dateLabel = 'Full Season';
+                        break;
+                    default:
+                        dataToProcess = practicesData[0].playerStats;
+                        dateLabel = practicesData[0].date;
+                }
+
+                return processPlayerData(dataToProcess, dateLabel);
+            }, [recentPracticeView]);
+
             // Load data from Firebase
             const loadData = useCallback(async () => {
                 try {
                     setLoading(true);
                     
-                    // Get all practice summaries
                     const practicesSnapshot = await db.collection('practiceSummaries')
                         .orderBy('practiceDate', 'desc')
                         .get();
@@ -158,12 +231,9 @@
                         });
                     });
 
-                    // Process recent practice (most recent by date)
-                    const recentPractice = practicesData[0];
-                    const recentProcessed = processPlayerData(recentPractice.playerStats, recentPractice.date);
+                    const recentProcessed = processRecentPracticeData(practicesData);
                     setRecentPracticeData(recentProcessed);
 
-                    // Process season data (aggregate all practices)
                     const seasonStats = {};
                     practicesData.forEach(practice => {
                         Object.entries(practice.playerStats || {}).forEach(([playerKey, stats]) => {
@@ -183,7 +253,6 @@
                     const seasonProcessed = processPlayerData(seasonStats, 'Season Total');
                     setSeasonData(seasonProcessed);
 
-                    // Calculate trending players
                     calculateTrending(practicesData);
 
                 } catch (error) {
@@ -191,7 +260,7 @@
                 } finally {
                     setLoading(false);
                 }
-            }, []);
+            }, [processRecentPracticeData]);
 
             // Process player data into display format
             const processPlayerData = (playerStats, dateLabel) => {
@@ -206,7 +275,6 @@
                         ...stats
                     };
                     
-                    // Add missing stats as 0
                     allStats.forEach(stat => {
                         if (!(stat in playerData)) {
                             playerData[stat] = 0;
@@ -238,16 +306,14 @@
                     const playerKey = `player_${player.number}`;
                     const practiceScores = [];
                     
-                    // Get total score for each of the last 5 practices
                     last5Practices.forEach(practice => {
                         const stats = practice.playerStats[playerKey] || {};
                         const total = calculateTotal(stats);
                         practiceScores.push(total);
                     });
                     
-                    // Calculate net change (most recent - oldest of the 5)
                     if (practiceScores.length === 5) {
-                        const netChange = practiceScores[0] - practiceScores[4]; // Most recent minus oldest
+                        const netChange = practiceScores[0] - practiceScores[4];
                         
                         playerTrends[player.number] = {
                             name: `${player.firstName} ${player.lastName}`,
@@ -302,7 +368,6 @@
                         });
                     });
 
-                    // Filter by period if needed
                     let filteredPoints = chartPoints;
                     if (selectedPeriod !== 'season' && chartPoints.length > 0) {
                         const periodDays = selectedPeriod === 'month' ? 30 : 7;
@@ -329,7 +394,6 @@
 
                 const ctx = chartRef.current.getContext('2d');
                 
-                // Destroy existing chart
                 if (chartInstance.current) {
                     chartInstance.current.destroy();
                 }
@@ -381,24 +445,35 @@
 
             useEffect(() => {
                 loadData();
-                // Manual refresh only - no auto-refresh for display app
-            }, [loadData]);
+            }, [loadData, recentPracticeView]);
 
-            const TableComponent = ({ data, sortCol, setSortCol, title }) => {
+            const TableComponent = ({ data, sortCol, setSortCol, title, showDropdown = false }) => {
                 if (!data) return React.createElement('div', { className: 'animate-pulse h-64' });
 
                 const sortedPlayers = sortPlayers(data.players, sortCol);
 
                 return React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6` }, [
                     React.createElement('div', { className: 'p-4 border-b', key: 'header' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, title),
+                        React.createElement('div', { className: 'flex justify-between items-center' }, [
+                            React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, title),
+                            showDropdown && React.createElement('select', {
+                                value: recentPracticeView,
+                                onChange: (e) => setRecentPracticeView(e.target.value),
+                                className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
+                            }, [
+                                React.createElement('option', { value: 'most-recent' }, 'Most Recent Practice'),
+                                React.createElement('option', { value: 'last-5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'last-10' }, 'Last 10 Practices'),
+                                React.createElement('option', { value: 'season' }, 'Full Season')
+                            ])
+                        ]),
                         React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
                     ]),
                     React.createElement('div', { className: 'overflow-x-auto', key: 'table' }, [
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-2 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '16ch' }, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-2 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '20ch' }, onClick: () => setSortCol('name') }, 'Player'),
                                     ...allStats.map(stat => 
                                         React.createElement('th', { 
                                             key: stat, 
@@ -418,7 +493,7 @@
                                         key: player.number,
                                         className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
                                     }, [
-                                        React.createElement('td', { className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '16ch' } }, player.name),
+                                        React.createElement('td', { className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '20ch' } }, player.name),
                                         ...allStats.map(stat => {
                                             const value = player[stat] || 0;
                                             const isNegative = statWeights[stat] < 0;
@@ -454,23 +529,24 @@
                         React.createElement('button', {
                             onClick: () => setDarkMode(prev => !prev),
                             className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
-                        }, darkMode ? '☀️ Light' : '🌙 Dark')
+                        }, darkMode ? 'Light' : 'Dark')
                     ])
                 ]),
 
-                // Recent Practice Table
+                // Recent Practice Table with Dropdown
                 React.createElement(TableComponent, {
                     key: 'recent',
                     data: recentPracticeData,
                     sortCol: sortColumn,
                     setSortCol: setSortColumn,
-                    title: 'Most Recent Practice'
+                    title: 'Most Recent Practice',
+                    showDropdown: true
                 }),
 
                 // Season Summary Table
-                seasonData.length > 0 ? React.createElement(TableComponent, {
+                seasonData ? React.createElement(TableComponent, {
                     key: 'season',
-                    data: { date: 'All Practices Combined', players: seasonData },
+                    data: { date: 'All Practices Combined', players: seasonData.players },
                     sortCol: seasonSortColumn,
                     setSortCol: setSeasonSortColumn,
                     title: 'Season Summary'
@@ -556,5 +632,3 @@
 
         ReactDOM.render(React.createElement(HustleDisplay), document.getElementById('root'));
     </script>
-</body>
-</html>
