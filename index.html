@@ -364,15 +364,9 @@
                 // Stats Input or Empty State
                 selectedPlayer ? 
                     React.createElement('div', { className: `rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "stats" }, [
-                        React.createElement('div', { className: 'flex justify-between items-center mb-4' }, [
-                            React.createElement('h2', { className: `text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 
-                                `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
-                            ),
-                            React.createElement('button', {
-                                onClick: loadExistingData,
-                                className: `px-3 py-1 text-sm rounded-md transition-colors ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`
-                            }, 'Refresh Data')
-                        ]),
+                        React.createElement('h2', { className: `text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}` }, 
+                            `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
+                        ),
                         React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
                             Object.entries(hustleStats).map(([category, stats]) =>
                                 React.createElement('div', { key: category, className: "space-y-3" }, [
