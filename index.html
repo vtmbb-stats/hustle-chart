@@ -1,34 +1,4 @@
-// Load existing data from Firebase for the current practice date
-            const loadExistingData = useCallback(async () => {
-                try {
-                    const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
-                    const practiceSnapshot = await practiceDoc.get();
-                    
-                    if (practiceSnapshot.exists) {
-                        const currentData = practiceSnapshot.data();
-                        const loadedPlayerStats = {};
-                        
-                        // Convert Firebase data back to our format
-                        Object.entries(currentData.playerStats || {}).forEach(([playerKey, stats]) => {
-                            const playerNumber = parseInt(playerKey.replace('player_', ''));
-                            const key = getPlayerKey(playerNumber);
-                            loadedPlayerStats[key] = { ...stats };
-                        });
-                        
-                        setPlayerStats(loadedPlayerStats);
-                    } else {
-                        // Clear stats if no data exists for this date
-                        setPlayerStats({});
-                    }
-                } catch (error) {
-                    console.error('Error loading existing data:', error);
-                }
-            }, [practiceDate]);
-
-            // Load data when practice date changes
-            useEffect(() => {
-                loadExistingData();
-            }, [loadExistingData]);<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -139,6 +109,38 @@
                 const key = getPlayerKey(playerNumber);
                 return playerStats[key]?.[stat] || 0;
             }, [playerStats, practiceDate]);
+
+            // Load existing data from Firebase for the current practice date
+            const loadExistingData = useCallback(async () => {
+                try {
+                    const practiceDoc = db.collection('practiceSummaries').doc(practiceDate);
+                    const practiceSnapshot = await practiceDoc.get();
+                    
+                    if (practiceSnapshot.exists) {
+                        const currentData = practiceSnapshot.data();
+                        const loadedPlayerStats = {};
+                        
+                        // Convert Firebase data back to our format
+                        Object.entries(currentData.playerStats || {}).forEach(([playerKey, stats]) => {
+                            const playerNumber = parseInt(playerKey.replace('player_', ''));
+                            const key = getPlayerKey(playerNumber);
+                            loadedPlayerStats[key] = { ...stats };
+                        });
+                        
+                        setPlayerStats(loadedPlayerStats);
+                    } else {
+                        // Clear stats if no data exists for this date
+                        setPlayerStats({});
+                    }
+                } catch (error) {
+                    console.error('Error loading existing data:', error);
+                }
+            }, [practiceDate]);
+
+            // Load data when practice date changes
+            useEffect(() => {
+                loadExistingData();
+            }, [loadExistingData]);
 
             // Save data to Firebase
             const saveToFirebase = useCallback(async (eventData) => {
@@ -316,7 +318,7 @@
                             React.createElement('button', {
                                 onClick: toggleDarkMode,
                                 className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
-                            }, darkMode ? '☀️ Light' : '🌙 Dark'),
+                            }, darkMode ? 'Light' : 'Dark'),
                             React.createElement('div', { className: "flex items-center gap-2" }, [
                                 React.createElement('label', { className: `text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}` }, "Practice Date:"),
                                 React.createElement('input', {
@@ -369,7 +371,7 @@
                             React.createElement('button', {
                                 onClick: loadExistingData,
                                 className: `px-3 py-1 text-sm rounded-md transition-colors ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-500 text-white hover:bg-blue-600'}`
-                            }, '🔄 Refresh Data')
+                            }, 'Refresh Data')
                         ]),
                         React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
                             Object.entries(hustleStats).map(([category, stats]) =>
