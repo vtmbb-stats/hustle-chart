@@ -355,28 +355,27 @@
                         .orderBy('practiceDate', 'asc')
                         .get();
                     
-                    const chartPoints = [];
+                    const allChartPoints = [];
                     practicesSnapshot.forEach(doc => {
                         const data = doc.data();
                         const playerKey = `player_${selectedPlayer}`;
                         const stats = data.playerStats?.[playerKey] || {};
                         const total = calculateTotal(stats);
                         
-                        chartPoints.push({
+                        allChartPoints.push({
                             date: data.practiceDate,
                             total: total
                         });
                     });
 
-                    let filteredPoints = chartPoints;
-                    if (selectedPeriod !== 'season' && chartPoints.length > 0) {
-                        const periodDays = selectedPeriod === 'month' ? 30 : 7;
-                        const cutoffDate = new Date();
-                        cutoffDate.setDate(cutoffDate.getDate() - periodDays);
-                        const cutoffStr = cutoffDate.toISOString().split('T')[0];
-                        
-                        filteredPoints = chartPoints.filter(point => point.date >= cutoffStr);
+                    // Filter by period
+                    let filteredPoints = allChartPoints;
+                    if (selectedPeriod === 'last-5') {
+                        filteredPoints = allChartPoints.slice(-5);
+                    } else if (selectedPeriod === 'last-10') {
+                        filteredPoints = allChartPoints.slice(-10);
                     }
+                    // season shows all points (no filtering needed)
 
                     setChartData(filteredPoints);
                 } catch (error) {
@@ -543,15 +542,6 @@
                     showDropdown: true
                 }),
 
-                // Season Summary Table
-                seasonData ? React.createElement(TableComponent, {
-                    key: 'season',
-                    data: { date: 'All Practices Combined', players: seasonData.players },
-                    sortCol: seasonSortColumn,
-                    setSortCol: setSeasonSortColumn,
-                    title: 'Season Summary'
-                }) : null,
-
                 // Trending Players
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} mb-6`, key: 'trending' }, [
                     React.createElement('div', { className: 'p-4 border-b' }, [
@@ -614,8 +604,8 @@
                                 className: `px-3 py-2 border rounded-md ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`
                             }, [
                                 React.createElement('option', { value: 'season' }, 'Full Season'),
-                                React.createElement('option', { value: 'month' }, 'Last 30 Days'),
-                                React.createElement('option', { value: 'week' }, 'Last 7 Days')
+                                React.createElement('option', { value: 'last-5' }, 'Last 5 Practices'),
+                                React.createElement('option', { value: 'last-10' }, 'Last 10 Practices')
                             ])
                         ])
                     ]),
