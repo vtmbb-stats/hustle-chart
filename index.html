@@ -99,7 +99,7 @@
                     "No Crash/Get Back", "Missed Close Out", "Missed Box Out"
                 ],
                 "Intangibles": [
-                    "Hustle Play", "Body Language", "Coach's Point"
+                    "Hustle Play", "Body Language", "Positive Coach's Point", "Negative Coach's Point"
                 ]
             };
 
@@ -227,7 +227,7 @@
 
             const StatSpinner = ({ playerNumber, stat, category }) => {
                 const value = getStatValue(playerNumber, stat);
-                const isNegativeStat = ['Turnover', 'Foul', 'No Crash/Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language'].includes(stat);
+                const isNegativeStat = ['Turnover', 'Foul', 'No Crash/Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language', 'Negative Coach\'s Point'].includes(stat);
                 
                 return React.createElement('div', {
                     className: `flex items-center justify-between p-3 rounded-lg border ${
