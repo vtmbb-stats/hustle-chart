@@ -96,7 +96,7 @@
                 ],
                 "Defensive": [
                     "Steal", "Deflection", "Charge Drawn", "Foul", 
-                    "No Crash/Get Back", "Missed Close Out", "Missed Box Out"
+                    "No Crash-Get Back", "Missed Close Out", "Missed Box Out"
                 ],
                 "Intangibles": [
                     "Hustle Play", "Body Language", "Positive Coach's Point", "Negative Coach's Point"
@@ -189,6 +189,7 @@
             }, [practiceDate]);
 
             const updateStat = useCallback((playerNumber, stat, change) => {
+                console.log('Updating stat:', stat, 'for player:', playerNumber, 'change:', change);
                 const key = getPlayerKey(playerNumber);
                 
                 setPlayerStats(prev => {
@@ -227,7 +228,7 @@
 
             const StatSpinner = ({ playerNumber, stat, category }) => {
                 const value = getStatValue(playerNumber, stat);
-                const isNegativeStat = ['Turnover', 'Foul', 'No Crash/Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language', 'Negative Coach\'s Point'].includes(stat);
+                const isNegativeStat = ['Turnover', 'Foul', 'No Crash-Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language', 'Negative Coach\'s Point'].includes(stat);
                 
                 return React.createElement('div', {
                     className: `flex items-center justify-between p-3 rounded-lg border ${
