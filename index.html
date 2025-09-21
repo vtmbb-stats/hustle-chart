@@ -189,7 +189,6 @@
             }, [practiceDate]);
 
             const updateStat = useCallback((playerNumber, stat, change) => {
-                console.log('Updating stat:', stat, 'for player:', playerNumber, 'change:', change);
                 const key = getPlayerKey(playerNumber);
                 
                 setPlayerStats(prev => {
