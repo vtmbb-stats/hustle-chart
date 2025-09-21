@@ -69,7 +69,7 @@
             const [sortColumn, setSortColumn] = useState('Total');
             const [loading, setLoading] = useState(true);
             const [lastUpdated, setLastUpdated] = useState(null);
-            const [autoRefresh, setAutoRefresh] = useState(true);
+            const [autoRefresh, setAutoRefresh] = useState(false);
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
             // All stats and their point values for Total calculation (must match input chart exactly)
@@ -200,13 +200,13 @@
                 loadPracticeData();
             }, [loadPracticeData]);
 
-            // Auto-refresh every 30 seconds
+            // Auto-refresh every 5 seconds
             useEffect(() => {
                 if (!autoRefresh) return;
 
                 const interval = setInterval(() => {
                     loadPracticeData();
-                }, 30000); // 30 seconds
+                }, 5000); // 5 seconds
 
                 return () => clearInterval(interval);
             }, [loadPracticeData, autoRefresh]);
