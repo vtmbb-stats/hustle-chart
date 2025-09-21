@@ -520,7 +520,7 @@
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-2 py-1 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '10ch' }, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-2 py-1 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20`, onClick: () => setSortCol('name') }, 'Player'),
                                     ...allStats.map(stat => 
                                         React.createElement('th', { 
                                             key: stat, 
@@ -545,7 +545,7 @@
                                         key: player.number,
                                         className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
                                     }, [
-                                        React.createElement('td', { className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '20ch' } }, player.displayName),
+                                        React.createElement('td', { className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20` }, player.displayName),
                                         ...allStats.map(stat => {
                                             const value = player[stat] || 0;
                                             const isNegative = statWeights[stat] < 0;
