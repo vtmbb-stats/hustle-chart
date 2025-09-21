@@ -235,28 +235,32 @@
                     // Load scrimmage data for win/loss records
                     const scrimmageSnapshot = await db.collection('scrimmages').get();
                     const scrimmageData = {};
+                    
                     scrimmageSnapshot.forEach(doc => {
                         const data = doc.data();
                         if (data.games && data.games.length > 0) {
                             data.games.forEach(game => {
-                                const winningTeam = game.winner === 'maroon' ? game.maroonTeam : game.grayTeam;
-                                const losingTeam = game.winner === 'maroon' ? game.grayTeam : game.maroonTeam;
-                                
-                                // Add wins for winning team
-                                winningTeam.forEach(player => {
-                                    if (!scrimmageData[player.number]) {
-                                        scrimmageData[player.number] = { wins: 0, losses: 0 };
-                                    }
-                                    scrimmageData[player.number].wins++;
-                                });
-                                
-                                // Add losses for losing team
-                                losingTeam.forEach(player => {
-                                    if (!scrimmageData[player.number]) {
-                                        scrimmageData[player.number] = { wins: 0, losses: 0 };
-                                    }
-                                    scrimmageData[player.number].losses++;
-                                });
+                                // Only count games where teams are stored with the game
+                                if (game.maroonTeam && game.grayTeam) {
+                                    const winningTeam = game.winner === 'maroon' ? game.maroonTeam : game.grayTeam;
+                                    const losingTeam = game.winner === 'maroon' ? game.grayTeam : game.maroonTeam;
+                                    
+                                    // Add wins for winning team players
+                                    winningTeam.forEach(player => {
+                                        if (!scrimmageData[player.number]) {
+                                            scrimmageData[player.number] = { wins: 0, losses: 0 };
+                                        }
+                                        scrimmageData[player.number].wins++;
+                                    });
+                                    
+                                    // Add losses for losing team players
+                                    losingTeam.forEach(player => {
+                                        if (!scrimmageData[player.number]) {
+                                            scrimmageData[player.number] = { wins: 0, losses: 0 };
+                                        }
+                                        scrimmageData[player.number].losses++;
+                                    });
+                                }
                             });
                         }
                     });
