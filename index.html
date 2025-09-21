@@ -362,7 +362,7 @@
                 ]),
 
                 // Stats Input or Empty State
-                selectedPlayer ? 
+                selectedPlayer !== null ? 
                     React.createElement('div', { className: `rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "stats" }, [
                         React.createElement('h2', { className: `text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}` }, 
                             `Stats for ${players.find(p => p.number === selectedPlayer)?.firstName} ${players.find(p => p.number === selectedPlayer)?.lastName}`
