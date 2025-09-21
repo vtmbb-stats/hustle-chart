@@ -69,7 +69,7 @@
             const [sortColumn, setSortColumn] = useState('Total');
             const [loading, setLoading] = useState(true);
             const [lastUpdated, setLastUpdated] = useState(null);
-            const [autoRefresh, setAutoRefresh] = useState(true);
+            const [autoRefresh, setAutoRefresh] = useState(false);
 
             // All stats and their point values for Total calculation (must match input chart exactly)
             const statWeights = {
