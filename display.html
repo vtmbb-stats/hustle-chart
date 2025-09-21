@@ -517,10 +517,10 @@
                         React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, data.date)
                     ]),
                     React.createElement('div', { className: 'overflow-x-auto', key: 'table' }, [
-                        React.createElement('table', { className: 'w-full text-xs border-collapse' }, [
+                        React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-2 py-1 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '20ch' }, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-2 py-1 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`, style: { width: '16ch' }, onClick: () => setSortCol('name') }, 'Player'),
                                     ...allStats.map(stat => 
                                         React.createElement('th', { 
                                             key: stat, 
