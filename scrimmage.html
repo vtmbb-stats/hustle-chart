@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VT Men's Basketball Scrimmage Tracker</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        
+        .dark-mode {
+            background-color: #111827 !important;
+        }
+        
+        .light-mode {
+            background-color: #f9fafb !important;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useCallback, useEffect } = React;
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDabJZx_x3SJEYk1dWwHJw0wUsp48yUWxc",
+            authDomain: "vtmbb-hustle-chart.firebaseapp.com",
+            projectId: "vtmbb-hustle-chart",
+            storageBucket: "vtmbb-hustle-chart.firebasestorage.app",
+            messagingSenderId: "210232739134",
+            appId: "1:210232739134:web:78ed344affb9f8c0ba586f"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const ScrimmageTracker = () => {
+            const [darkMode, setDarkMode] = useState(true);
+            const [practiceDate, setPracticeDate] = useState(new Date().toISOString().split('T')[0]);
+            const [maroonTeam, setMaroonTeam] = useState([]);
+            const [grayTeam, setGrayTeam] = useState([]);
+            const [unassigned, setUnassigned] = useState([]);
+            const [saveStatus, setSaveStatus] = useState('saved');
+            const [games, setGames] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            // Player roster
+            const players = [
+                { number: 0, lastName: "Bedford", firstName: "Jailen" },
+                { number: 1, lastName: "Lawal", firstName: "Tobi" },
+                { number: 2, lastName: "Schutt", firstName: "Jaden" },
+                { number: 3, lastName: "Hammond", firstName: "Ben" },
+                { number: 4, lastName: "Pasha", firstName: "Izaiah" },
+                { number: 5, lastName: "Jones", firstName: "Sin'Cere" },
+                { number: 7, lastName: "Freeman", firstName: "Brett" },
+                { number: 10, lastName: "Johnson", firstName: "Tyler" },
+                { number: 13, lastName: "Hansberry", firstName: "Amani" },
+                { number: 15, lastName: "Peterkin", firstName: "Snook" },
+                { number: 17, lastName: "Avdalas", firstName: "Neo" },
+                { number: 22, lastName: "Davis", firstName: "Solomon" },
+                { number: 32, lastName: "Gurdak", firstName: "Christian" },
+                { number: 77, lastName: "Dorn", firstName: "Antonio" }
+            ];
+
+            // Update body class when dark mode changes
+            useEffect(() => {
+                document.body.className = darkMode ? 'dark-mode' : 'light-mode';
+            }, [darkMode]);
+
+            // Initialize unassigned players
+            useEffect(() => {
+                setUnassigned([...players]);
+            }, []);
+
+            // Load existing scrimmage data
+            const loadScrimmageData = useCallback(async () => {
+                try {
+                    setLoading(true);
+                    const scrimmageDoc = db.collection('scrimmages').doc(practiceDate);
+                    const scrimmageSnapshot = await scrimmageDoc.get();
+                    
+                    if (scrimmageSnapshot.exists) {
+                        const data = scrimmageSnapshot.data();
+                        setMaroonTeam(data.maroonTeam || []);
+                        setGrayTeam(data.grayTeam || []);
+                        setGames(data.games || []);
+                        
+                        // Update unassigned players
+                        const assignedPlayers = [...(data.maroonTeam || []), ...(data.grayTeam || [])];
+                        const assignedNumbers = assignedPlayers.map(p => p.number);
+                        setUnassigned(players.filter(p => !assignedNumbers.includes(p.number)));
+                    } else {
+                        // Reset to defaults
+                        setMaroonTeam([]);
+                        setGrayTeam([]);
+                        setGames([]);
+                        setUnassigned([...players]);
+                    }
+                } catch (error) {
+                    console.error('Error loading scrimmage data:', error);
+                } finally {
+                    setLoading(false);
+                }
+            }, [practiceDate]);
+
+            useEffect(() => {
+                loadScrimmageData();
+            }, [loadScrimmageData]);
+
+            // Save scrimmage data to Firebase
+            const saveScrimmageData = useCallback(async () => {
+                try {
+                    setSaveStatus('saving');
+                    const scrimmageDoc = db.collection('scrimmages').doc(practiceDate);
+                    
+                    await scrimmageDoc.set({
+                        practiceDate,
+                        maroonTeam,
+                        grayTeam,
+                        games,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    setSaveStatus('saved');
+                } catch (error) {
+                    console.error('Error saving scrimmage data:', error);
+                    setSaveStatus('error');
+                    setTimeout(() => setSaveStatus('saved'), 3000);
+                }
+            }, [practiceDate, maroonTeam, grayTeam, games]);
+
+            // Move player to team
+            const movePlayerToTeam = (player, targetTeam) => {
+                // Remove from all current locations
+                setMaroonTeam(prev => prev.filter(p => p.number !== player.number));
+                setGrayTeam(prev => prev.filter(p => p.number !== player.number));
+                setUnassigned(prev => prev.filter(p => p.number !== player.number));
+                
+                // Add to target team
+                if (targetTeam === 'maroon') {
+                    setMaroonTeam(prev => [...prev, player].sort((a, b) => a.number - b.number));
+                } else if (targetTeam === 'gray') {
+                    setGrayTeam(prev => [...prev, player].sort((a, b) => a.number - b.number));
+                } else {
+                    setUnassigned(prev => [...prev, player].sort((a, b) => a.number - b.number));
+                }
+            };
+
+            // Add game result
+            const addGameResult = (winner) => {
+                const newGame = {
+                    id: Date.now(),
+                    winner: winner,
+                    timestamp: new Date().toISOString(),
+                    maroonTeam: [...maroonTeam],
+                    grayTeam: [...grayTeam]
+                };
+                setGames(prev => [...prev, newGame]);
+            };
+
+            // Remove game
+            const removeGame = (gameId) => {
+                setGames(prev => prev.filter(game => game.id !== gameId));
+            };
+
+            // Save whenever teams or games change
+            useEffect(() => {
+                if (!loading) {
+                    saveScrimmageData();
+                }
+            }, [maroonTeam, grayTeam, games, loading, saveScrimmageData]);
+
+            const getSaveStatusDisplay = () => {
+                switch(saveStatus) {
+                    case 'saving':
+                        return {
+                            color: 'text-yellow-600',
+                            dot: 'bg-yellow-500',
+                            text: 'Saving...'
+                        };
+                    case 'error':
+                        return {
+                            color: 'text-red-600',
+                            dot: 'bg-red-500',
+                            text: 'Save error'
+                        };
+                    default:
+                        return {
+                            color: 'text-green-600',
+                            dot: 'bg-green-500',
+                            text: 'Saved to cloud'
+                        };
+                }
+            };
+
+            const statusDisplay = getSaveStatusDisplay();
+
+            const PlayerCard = ({ player, onMoveToTeam, currentTeam }) => {
+                return React.createElement('div', {
+                    className: `p-3 rounded-lg border-2 transition-all ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} hover:shadow-md`
+                }, [
+                    React.createElement('div', { className: 'flex items-center justify-between', key: 'content' }, [
+                        React.createElement('div', { key: 'info' }, [
+                            React.createElement('div', { className: `text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, `#${player.number}`),
+                            React.createElement('div', { className: `text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}` }, `${player.firstName} ${player.lastName}`)
+                        ]),
+                        React.createElement('div', { className: 'flex gap-1', key: 'buttons' }, [
+                            currentTeam !== 'maroon' && React.createElement('button', {
+                                onClick: () => onMoveToTeam(player, 'maroon'),
+                                className: 'px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700',
+                                title: 'Move to Maroon'
+                            }, 'M'),
+                            currentTeam !== 'gray' && React.createElement('button', {
+                                onClick: () => onMoveToTeam(player, 'gray'),
+                                className: 'px-2 py-1 text-xs rounded bg-gray-600 text-white hover:bg-gray-700',
+                                title: 'Move to Gray'
+                            }, 'G'),
+                            currentTeam !== 'unassigned' && React.createElement('button', {
+                                onClick: () => onMoveToTeam(player, 'unassigned'),
+                                className: 'px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700',
+                                title: 'Remove from team'
+                            }, 'X')
+                        ])
+                    ])
+                ]);
+            };
+
+            const TeamSection = ({ title, players, teamColor, currentTeam }) => {
+                return React.createElement('div', {
+                    className: `rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`
+                }, [
+                    React.createElement('h3', {
+                        className: `text-lg font-semibold mb-3 ${teamColor} ${darkMode ? 'text-white' : 'text-gray-800'}`,
+                        key: 'title'
+                    }, `${title} (${players.length})`),
+                    React.createElement('div', { className: 'space-y-2', key: 'players' },
+                        players.map(player => 
+                            React.createElement(PlayerCard, {
+                                key: player.number,
+                                player: player,
+                                onMoveToTeam: movePlayerToTeam,
+                                currentTeam: currentTeam
+                            })
+                        )
+                    )
+                ]);
+            };
+
+            if (loading) {
+                return React.createElement('div', { className: 'max-w-6xl mx-auto p-4' }, [
+                    React.createElement('div', { className: 'animate-pulse space-y-4', key: 'loading' }, [
+                        React.createElement('div', { className: 'h-8 bg-gray-300 rounded w-1/3', key: 'title' }),
+                        React.createElement('div', { className: 'h-64 bg-gray-300 rounded', key: 'content' })
+                    ])
+                ]);
+            }
+
+            return React.createElement('div', { className: 'max-w-6xl mx-auto p-4' }, [
+                // Header
+                React.createElement('div', { className: `rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "header" }, [
+                    React.createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4" }, [
+                        React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball - Scrimmage Tracker"),
+                        React.createElement('div', { className: "flex items-center gap-4" }, [
+                            React.createElement('button', {
+                                onClick: () => setDarkMode(prev => !prev),
+                                className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
+                            }, darkMode ? '☀️ Light' : '🌙 Dark'),
+                            React.createElement('div', { className: "flex items-center gap-2" }, [
+                                React.createElement('label', { className: `text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}` }, "Practice Date:"),
+                                React.createElement('input', {
+                                    type: "date",
+                                    value: practiceDate,
+                                    onChange: (e) => setPracticeDate(e.target.value),
+                                    className: `px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`
+                                })
+                            ]),
+                            React.createElement('div', { className: `flex items-center gap-2 text-sm ${statusDisplay.color} min-w-32` }, [
+                                React.createElement('div', { 
+                                    className: `w-2 h-2 ${statusDisplay.dot} rounded-full ${saveStatus === 'saving' ? 'animate-pulse' : ''}` 
+                                }),
+                                React.createElement('span', {}, statusDisplay.text)
+                            ])
+                        ])
+                    ])
+                ]),
+
+                // Team Assignment
+                React.createElement('div', { className: 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6', key: 'teams' }, [
+                    React.createElement(TeamSection, {
+                        key: 'maroon',
+                        title: 'Maroon Team',
+                        players: maroonTeam,
+                        teamColor: 'text-red-600',
+                        currentTeam: 'maroon'
+                    }),
+                    React.createElement(TeamSection, {
+                        key: 'gray',
+                        title: 'Gray Team', 
+                        players: grayTeam,
+                        teamColor: 'text-gray-600',
+                        currentTeam: 'gray'
+                    }),
+                    React.createElement(TeamSection, {
+                        key: 'unassigned',
+                        title: 'Unassigned',
+                        players: unassigned,
+                        teamColor: 'text-blue-600',
+                        currentTeam: 'unassigned'
+                    })
+                ]),
+
+                // Game Results
+                React.createElement('div', { className: `rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: 'games' }, [
+                    React.createElement('div', { className: 'flex justify-between items-center mb-4', key: 'game-header' }, [
+                        React.createElement('h2', { className: `text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Game Results'),
+                        React.createElement('div', { className: 'flex gap-2' }, [
+                            React.createElement('button', {
+                                onClick: () => addGameResult('maroon'),
+                                disabled: maroonTeam.length === 0 || grayTeam.length === 0,
+                                className: `px-4 py-2 rounded-md text-white font-medium transition-colors ${
+                                    maroonTeam.length === 0 || grayTeam.length === 0 
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`
+                            }, 'Maroon Wins'),
+                            React.createElement('button', {
+                                onClick: () => addGameResult('gray'),
+                                disabled: maroonTeam.length === 0 || grayTeam.length === 0,
+                                className: `px-4 py-2 rounded-md text-white font-medium transition-colors ${
+                                    maroonTeam.length === 0 || grayTeam.length === 0 
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-gray-600 hover:bg-gray-700'
+                                }`
+                            }, 'Gray Wins')
+                        ])
+                    ]),
+                    
+                    games.length === 0 ? 
+                        React.createElement('div', { 
+                            className: `text-center py-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`,
+                            key: 'no-games'
+                        }, 'No games recorded yet. Assign players to teams and start tracking wins!') :
+                        React.createElement('div', { className: 'space-y-2', key: 'game-list' },
+                            games.map((game, index) => 
+                                React.createElement('div', {
+                                    key: game.id,
+                                    className: `flex justify-between items-center p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`
+                                }, [
+                                    React.createElement('div', { key: 'game-info' }, [
+                                        React.createElement('span', { className: 'font-medium' }, `Game ${index + 1}: `),
+                                        React.createElement('span', { 
+                                            className: game.winner === 'maroon' ? 'text-red-600 font-semibold' : 'text-gray-600 font-semibold' 
+                                        }, game.winner === 'maroon' ? 'Maroon' : 'Gray'),
+                                        React.createElement('span', {}, ' wins'),
+                                        React.createElement('span', { 
+                                            className: `text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} ml-2` 
+                                        }, new Date(game.timestamp).toLocaleTimeString())
+                                    ]),
+                                    React.createElement('button', {
+                                        onClick: () => removeGame(game.id),
+                                        className: 'px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600'
+                                    }, 'Remove')
+                                ])
+                            )
+                        ),
+                    
+                    // Game Summary
+                    games.length > 0 && React.createElement('div', {
+                        className: `mt-4 pt-4 border-t ${darkMode ? 'border-gray-600' : 'border-gray-200'}`,
+                        key: 'summary'
+                    }, [
+                        React.createElement('div', { className: 'flex justify-around text-center' }, [
+                            React.createElement('div', { key: 'maroon-record' }, [
+                                React.createElement('div', { className: 'text-red-600 font-bold text-lg' }, 'Maroon'),
+                                React.createElement('div', { className: `${darkMode ? 'text-gray-300' : 'text-gray-700'}` }, 
+                                    `${games.filter(g => g.winner === 'maroon').length}-${games.filter(g => g.winner === 'gray').length}`
+                                )
+                            ]),
+                            React.createElement('div', { key: 'gray-record' }, [
+                                React.createElement('div', { className: 'text-gray-600 font-bold text-lg' }, 'Gray'),
+                                React.createElement('div', { className: `${darkMode ? 'text-gray-300' : 'text-gray-700'}` }, 
+                                    `${games.filter(g => g.winner === 'gray').length}-${games.filter(g => g.winner === 'maroon').length}`
+                                )
+                            ])
+                        ])
+                    ])
+                ])
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(ScrimmageTracker), document.getElementById('root'));
+    </script>
+</body>
+</html>
