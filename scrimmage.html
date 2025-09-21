@@ -286,6 +286,10 @@
                         React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball - Scrimmage Tracker"),
                         React.createElement('div', { className: "flex items-center gap-4" }, [
                             React.createElement('button', {
+                                onClick: () => window.open('index.html', '_blank'),
+                                className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-green-500 text-white hover:bg-green-600'}`
+                            }, 'Hustle Chart'),
+                            React.createElement('button', {
                                 onClick: () => setDarkMode(prev => !prev),
                                 className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
                             }, darkMode ? '☀️ Light' : '🌙 Dark'),
