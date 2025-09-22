@@ -257,7 +257,7 @@
                     scrimmageSnapshot.forEach(doc => {
                         const data = doc.data();
                         // Only include scrimmages from the practice dates we're viewing
-                        if (includedPracticeDates.includes(data.practiceDate) && data.games && data.games.length > 0) {
+                        if (data.practiceDate && includedPracticeDates.includes(data.practiceDate) && data.games && data.games.length > 0) {
                             data.games.forEach(game => {
                                 // Only count games where teams are stored with the game
                                 if (game.maroonTeam && game.grayTeam) {
