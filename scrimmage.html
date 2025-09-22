@@ -131,7 +131,7 @@
 
             useEffect(() => {
                 loadScrimmageData();
-            }, [loadScrimmageData]);
+            }, [practiceDate]); // Depend directly on practiceDate to ensure reset
 
             // Save scrimmage data to Firebase
             const saveScrimmageData = useCallback(async () => {
