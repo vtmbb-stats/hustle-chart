@@ -115,7 +115,7 @@
                         const assignedNumbers = assignedPlayers.map(p => p.number);
                         setUnassigned(players.filter(p => !assignedNumbers.includes(p.number)));
                     } else {
-                        // Reset to defaults
+                        // Reset to defaults for new date
                         setMaroonTeam([]);
                         setGrayTeam([]);
                         setOrangeTeam([]);
@@ -125,7 +125,8 @@
                 } catch (error) {
                     console.error('Error loading scrimmage data:', error);
                 } finally {
-                    setLoading(false);
+                    // Small delay to ensure state updates complete before enabling auto-save
+                    setTimeout(() => setLoading(false), 100);
                 }
             }, [practiceDate]);
 
