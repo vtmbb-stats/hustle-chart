@@ -97,7 +97,7 @@
             }, []);
 
             // Load existing scrimmage data
-            const loadScrimmageData = async () => {
+            const loadScrimmageData = useCallback(async () => {
                 try {
                     setLoading(true);
                     const scrimmageDoc = db.collection('scrimmages').doc(practiceDate);
@@ -115,7 +115,7 @@
                         const assignedNumbers = assignedPlayers.map(p => p.number);
                         setUnassigned(players.filter(p => !assignedNumbers.includes(p.number)));
                     } else {
-                        // Reset to defaults for new date
+                        // Reset to defaults
                         setMaroonTeam([]);
                         setGrayTeam([]);
                         setOrangeTeam([]);
@@ -127,11 +127,11 @@
                 } finally {
                     setLoading(false);
                 }
-            };
+            }, [practiceDate]);
 
             useEffect(() => {
                 loadScrimmageData();
-            }, [practiceDate]); // Direct dependency on practiceDate
+            }, [practiceDate]); // Depend directly on practiceDate to ensure reset
 
             // Save scrimmage data to Firebase
             const saveScrimmageData = useCallback(async () => {
