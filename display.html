@@ -232,13 +232,32 @@
                         });
                     });
 
-                    // Load scrimmage data for win/loss records
+                    // Determine which practice dates to include based on current view
+                    let includedPracticeDates = [];
+                    switch(recentPracticeView) {
+                        case 'most-recent':
+                            includedPracticeDates = practicesData.length > 0 ? [practicesData[0].date] : [];
+                            break;
+                        case 'last-5':
+                            includedPracticeDates = practicesData.slice(0, Math.min(5, practicesData.length)).map(p => p.date);
+                            break;
+                        case 'last-10':
+                            includedPracticeDates = practicesData.slice(0, Math.min(10, practicesData.length)).map(p => p.date);
+                            break;
+                        case 'season':
+                        default:
+                            includedPracticeDates = practicesData.map(p => p.date);
+                            break;
+                    }
+
+                    // Load scrimmage data for win/loss records, filtered by included dates
                     const scrimmageSnapshot = await db.collection('scrimmages').get();
                     const scrimmageData = {};
                     
                     scrimmageSnapshot.forEach(doc => {
                         const data = doc.data();
-                        if (data.games && data.games.length > 0) {
+                        // Only include scrimmages from the practice dates we're viewing
+                        if (includedPracticeDates.includes(data.practiceDate) && data.games && data.games.length > 0) {
                             data.games.forEach(game => {
                                 // Only count games where teams are stored with the game
                                 if (game.maroonTeam && game.grayTeam) {
@@ -284,7 +303,35 @@
                         });
                     });
 
-                    const seasonProcessed = processPlayerData(seasonStats, 'Season Total', scrimmageData);
+                    // For season data, always use full season scrimmage records
+                    const fullSeasonScrimmageData = {};
+                    scrimmageSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.games && data.games.length > 0) {
+                            data.games.forEach(game => {
+                                if (game.maroonTeam && game.grayTeam) {
+                                    const winningTeam = game.winner === 'maroon' ? game.maroonTeam : game.grayTeam;
+                                    const losingTeam = game.winner === 'maroon' ? game.grayTeam : game.maroonTeam;
+                                    
+                                    winningTeam.forEach(player => {
+                                        if (!fullSeasonScrimmageData[player.number]) {
+                                            fullSeasonScrimmageData[player.number] = { wins: 0, losses: 0 };
+                                        }
+                                        fullSeasonScrimmageData[player.number].wins++;
+                                    });
+                                    
+                                    losingTeam.forEach(player => {
+                                        if (!fullSeasonScrimmageData[player.number]) {
+                                            fullSeasonScrimmageData[player.number] = { wins: 0, losses: 0 };
+                                        }
+                                        fullSeasonScrimmageData[player.number].losses++;
+                                    });
+                                }
+                            });
+                        }
+                    });
+
+                    const seasonProcessed = processPlayerData(seasonStats, 'Season Total', fullSeasonScrimmageData);
                     setSeasonData(seasonProcessed);
 
                     calculateTrending(practicesData);
@@ -296,7 +343,7 @@
                 } finally {
                     setLoading(false);
                 }
-            }, [processRecentPracticeData]);
+            }, [processRecentPracticeData, recentPracticeView]);
 
             // Process player data into display format
             const processPlayerData = (playerStats, dateLabel, scrimmageData = {}) => {
