@@ -152,23 +152,35 @@
                             data.games.forEach(game => {
                                 // Only count games where teams are stored with the game
                                 if (game.maroonTeam && game.grayTeam) {
-                                    const winningTeam = game.winner === 'maroon' ? game.maroonTeam : game.grayTeam;
-                                    const losingTeam = game.winner === 'maroon' ? game.grayTeam : game.maroonTeam;
+                                    // Get all teams that had players in this game
+                                    const teamsInGame = [
+                                        { name: 'maroon', players: game.maroonTeam || [] },
+                                        { name: 'gray', players: game.grayTeam || [] },
+                                        { name: 'orange', players: game.orangeTeam || [] }
+                                    ].filter(team => team.players.length > 0);
                                     
-                                    // Add wins for winning team players
-                                    winningTeam.forEach(player => {
-                                        if (!scrimmageData[player.number]) {
-                                            scrimmageData[player.number] = { wins: 0, losses: 0 };
-                                        }
-                                        scrimmageData[player.number].wins++;
-                                    });
+                                    // Find winning and losing teams
+                                    const winningTeam = teamsInGame.find(team => team.name === game.winner);
+                                    const losingTeams = teamsInGame.filter(team => team.name !== game.winner);
                                     
-                                    // Add losses for losing team players
-                                    losingTeam.forEach(player => {
-                                        if (!scrimmageData[player.number]) {
-                                            scrimmageData[player.number] = { wins: 0, losses: 0 };
-                                        }
-                                        scrimmageData[player.number].losses++;
+                                    // Add wins for winning team players (if team existed and had players)
+                                    if (winningTeam) {
+                                        winningTeam.players.forEach(player => {
+                                            if (!scrimmageData[player.number]) {
+                                                scrimmageData[player.number] = { wins: 0, losses: 0 };
+                                            }
+                                            scrimmageData[player.number].wins++;
+                                        });
+                                    }
+                                    
+                                    // Add losses for losing team players (only teams that had players)
+                                    losingTeams.forEach(losingTeam => {
+                                        losingTeam.players.forEach(player => {
+                                            if (!scrimmageData[player.number]) {
+                                                scrimmageData[player.number] = { wins: 0, losses: 0 };
+                                            }
+                                            scrimmageData[player.number].losses++;
+                                        });
                                     });
                                 }
                             });
