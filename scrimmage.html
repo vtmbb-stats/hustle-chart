@@ -97,7 +97,7 @@
             }, []);
 
             // Load existing scrimmage data
-            const loadScrimmageData = useCallback(async () => {
+            const loadScrimmageData = async () => {
                 try {
                     setLoading(true);
                     const scrimmageDoc = db.collection('scrimmages').doc(practiceDate);
@@ -125,14 +125,13 @@
                 } catch (error) {
                     console.error('Error loading scrimmage data:', error);
                 } finally {
-                    // Small delay to ensure state updates complete before enabling auto-save
-                    setTimeout(() => setLoading(false), 100);
+                    setLoading(false);
                 }
-            }, [practiceDate]);
+            };
 
             useEffect(() => {
                 loadScrimmageData();
-            }, [practiceDate]); // Depend directly on practiceDate to ensure reset
+            }, [practiceDate]); // Direct dependency on practiceDate
 
             // Save scrimmage data to Firebase
             const saveScrimmageData = useCallback(async () => {
