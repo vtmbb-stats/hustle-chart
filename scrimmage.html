@@ -441,8 +441,21 @@
                     }, [
                         React.createElement('div', { className: 'flex justify-around text-center' }, 
                             activeTeams.map(team => {
-                                const wins = games.filter(g => g.winner === team.name).length;
-                                const losses = games.length - wins;
+                                // Calculate wins and losses only for games where this team had players
+                                let wins = 0;
+                                let losses = 0;
+                                
+                                games.forEach(game => {
+                                    const teamPlayersInGame = game[`${team.name}Team`] || [];
+                                    if (teamPlayersInGame.length > 0) {
+                                        if (game.winner === team.name) {
+                                            wins++;
+                                        } else {
+                                            losses++;
+                                        }
+                                    }
+                                });
+                                
                                 return React.createElement('div', { key: team.name }, [
                                     React.createElement('div', { 
                                         className: `font-bold text-lg ${
