@@ -138,7 +138,15 @@
                     if (practicesSnapshot.empty) {
                         console.log('No practice data found');
                         setSeasonData(null);
-                        setLastUpdated(new Date().toLocaleString());
+                        setLastUpdated(new Date().toLocaleString('en-US', {
+                            timeZone: 'America/New_York',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                        }));
                         setLoading(false);
                         return;
                     }
@@ -214,10 +222,18 @@
                         });
                     });
 
-                    const seasonProcessed = processPlayerData(seasonStats, 'Season Total', scrimmageData);
+                    const seasonProcessed = processPlayerData(seasonStats, 'Total', scrimmageData);
                     setSeasonData(seasonProcessed);
 
-                    setLastUpdated(new Date().toLocaleString());
+                    setLastUpdated(new Date().toLocaleString('en-US', {
+                        timeZone: 'America/New_York',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    }));
                 } catch (error) {
                     console.error('Error loading data:', error);
                 } finally {
@@ -315,7 +331,7 @@
                 // Header
                 React.createElement('div', { className: `rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "header" }, [
                     React.createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4" }, [
-                        React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball Hustle Chart Season"),
+                        React.createElement('h1', { className: `text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, "Virginia Tech Men's Basketball Hustle Chart"),
                         React.createElement('div', { className: "flex items-center gap-4" }, [
                             React.createElement('button', {
                                 onClick: () => setDarkMode(prev => !prev),
@@ -348,7 +364,7 @@
                 // Season Stats Table
                 React.createElement('div', { className: `rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`, key: "table" }, [
                     React.createElement('div', { className: 'p-4 border-b', key: 'table-header' }, [
-                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Season Total'),
+                        React.createElement('h2', { className: `text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}` }, 'Season'),
                         React.createElement('p', { className: `text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}` }, seasonData.date)
                     ]),
                     React.createElement('div', { className: 'overflow-x-auto', key: 'table-container' }, [
