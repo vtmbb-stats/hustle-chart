@@ -320,12 +320,12 @@
                             React.createElement('button', {
                                 onClick: () => setDarkMode(prev => !prev),
                                 className: `px-3 py-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`
-                            }, darkMode ? '☀️ Light' : '🌙 Dark'),
+                            }, darkMode ? 'Light' : 'Dark'),
                             React.createElement('button', {
                                 onClick: () => setAutoRefresh(prev => !prev),
                                 className: `px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${autoRefresh ? (darkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600') : (darkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-400 hover:bg-gray-500')} text-white`
                             }, [
-                                autoRefresh ? '⏸️' : '▶️',
+                                autoRefresh ? '' : '',
                                 ' ',
                                 autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'
                             ]),
@@ -333,7 +333,7 @@
                                 onClick: loadSeasonData,
                                 className: `px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`
                             }, [
-                                '🔄',
+                                '',
                                 ' ',
                                 'Refresh Now'
                             ]),
