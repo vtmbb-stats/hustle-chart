@@ -95,9 +95,7 @@
                 // Negative stats
                 'Turnover': -2,
                 'Foul': -1,
-                'No Crash-Get Back': -1,
                 'Missed Close Out': -1,
-                'Missed Box Out': -1,
                 'Body Language': -1,
                 'Negative Coach\'s Point': -1
             };
@@ -380,10 +378,7 @@
                     const playerData = {
                         number: player.number,
                         name: `${player.firstName} ${player.lastName}`,
-                        displayName: React.createElement('div', {}, [
-                            React.createElement('div', { key: 'first' }, player.firstName),
-                            React.createElement('div', { key: 'last' }, player.lastName)
-                        ]),
+                        displayName: `${player.firstName} ${player.lastName}`,
                         lastName: player.lastName,
                         ...stats
                     };
@@ -593,21 +588,21 @@
                         React.createElement('table', { className: 'w-full text-sm border-collapse' }, [
                             React.createElement('thead', { className: `table-header ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`, key: 'thead' }, [
                                 React.createElement('tr', {}, [
-                                    React.createElement('th', { className: `px-2 py-1 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20`, onClick: () => setSortCol('name') }, 'Player'),
+                                    React.createElement('th', { className: `px-2 py-2 text-left cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-40`, onClick: () => setSortCol('name') }, 'Player'),
                                     ...allStats.map(stat => 
                                         React.createElement('th', { 
                                             key: stat, 
-                                            className: `px-1 py-1 text-center cursor-pointer hover:bg-gray-600 min-w-8 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
+                                            className: `px-1 py-2 text-center cursor-pointer hover:bg-gray-600 min-w-10 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
                                             onClick: () => setSortCol(stat)
                                         }, stat)
                                     ),
                                     React.createElement('th', { 
-                                        className: `px-1 py-1 text-center cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-12`,
+                                        className: `px-1 py-2 text-center cursor-pointer hover:bg-gray-600 border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-12`,
                                         onClick: () => setSortCol('Record'),
                                         title: 'Scrimmage Record (W-L)'
                                     }, 'Record'),
                                     React.createElement('th', { 
-                                        className: `px-2 py-1 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-16 ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
+                                        className: `px-2 py-2 text-center cursor-pointer font-bold border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-16 ${sortCol === 'Total' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'}`,
                                         onClick: () => setSortCol('Total')
                                     }, 'Total')
                                 ])
@@ -618,20 +613,20 @@
                                         key: player.number,
                                         className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
                                     }, [
-                                        React.createElement('td', { className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-20` }, player.displayName),
+                                        React.createElement('td', { className: `px-2 py-2 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'} w-40` }, player.displayName),
                                         ...allStats.map(stat => {
                                             const value = player[stat] || 0;
                                             const isNegative = statWeights[stat] < 0;
                                             return React.createElement('td', { 
                                                 key: stat, 
-                                                className: `px-1 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
+                                                className: `px-1 py-2 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
                                             }, value > 0 ? value : '');
                                         }),
                                         React.createElement('td', { 
-                                            className: `px-1 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Record === '0-0' ? (darkMode ? 'text-gray-400' : 'text-gray-600') : 'text-blue-500 font-medium'}`,
+                                            className: `px-1 py-2 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Record === '0-0' ? (darkMode ? 'text-gray-400' : 'text-gray-600') : 'text-blue-500 font-medium'}`,
                                             title: `Winning Percentage: ${(player.WinPercentage * 100).toFixed(1)}%`
                                         }, player.Record),
-                                        React.createElement('td', { className: `px-2 py-1 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}` }, player.Total)
+                                        React.createElement('td', { className: `px-2 py-2 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}` }, player.Total)
                                     ])
                                 )
                             )
