@@ -95,8 +95,7 @@
                     "Screen Assist", "Gretzky", "Turnover"
                 ],
                 "Defensive": [
-                    "Steal", "Deflection", "Charge Drawn", "Foul", 
-                    "No Crash-Get Back", "Missed Close Out", "Missed Box Out"
+                    "Steal", "Deflection", "Charge Drawn", "Foul", "Missed Close Out"
                 ],
                 "Intangibles": [
                     "Hustle Play", "Body Language", "Positive Coach's Point", "Negative Coach's Point"
@@ -227,7 +226,7 @@
 
             const StatSpinner = ({ playerNumber, stat, category }) => {
                 const value = getStatValue(playerNumber, stat);
-                const isNegativeStat = ['Turnover', 'Foul', 'No Crash-Get Back', 'Missed Close Out', 'Missed Box Out', 'Body Language', 'Negative Coach\'s Point'].includes(stat);
+                const isNegativeStat = ['Turnover', 'Foul', 'Missed Close Out', 'Body Language', 'Negative Coach\'s Point'].includes(stat);
                 
                 return React.createElement('div', {
                     className: `flex items-center justify-between p-3 rounded-lg border ${
@@ -400,4 +399,5 @@
     </script>
 </body>
 </html>
+
 
