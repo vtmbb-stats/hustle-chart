@@ -397,15 +397,15 @@
                                         className: `border-b ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'}`
                                     }, [
                                         React.createElement('td', { 
-                                            className: `px-2 py-1 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
+                                            className: `px-2 py-2 font-medium border ${darkMode ? 'border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'}`,
                                             key: 'name'
                                         }, player.displayName),
                                         React.createElement('td', { 
-                                            className: `px-2 py-1 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}`,
+                                            className: `px-2 py-2 text-center font-bold border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Total > 0 ? 'text-green-500' : player.Total < 0 ? 'text-red-500' : darkMode ? 'text-gray-200' : 'text-gray-700'}`,
                                             key: 'total'
                                         }, player.Total),
                                         React.createElement('td', { 
-                                            className: `px-1 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Record === '0-0' ? (darkMode ? 'text-gray-400' : 'text-gray-600') : 'text-blue-500 font-medium'}`,
+                                            className: `px-1 py-2 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${player.Record === '0-0' ? (darkMode ? 'text-gray-400' : 'text-gray-600') : 'text-blue-500 font-medium'}`,
                                             key: 'record',
                                             title: `Winning Percentage: ${(player.WinPercentage * 100).toFixed(1)}%`
                                         }, player.Record),
@@ -414,7 +414,7 @@
                                             const isNegative = statWeights[stat] < 0;
                                             return React.createElement('td', { 
                                                 key: stat, 
-                                                className: `px-1 py-1 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
+                                                className: `px-1 py-2 text-center border ${darkMode ? 'border-gray-600' : 'border-gray-300'} ${value > 0 ? (isNegative ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold') : darkMode ? 'text-gray-400' : 'text-gray-600'}`
                                             }, value > 0 ? value : '');
                                         })
                                     ])
