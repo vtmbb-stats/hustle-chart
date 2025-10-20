@@ -247,10 +247,7 @@
                     const playerData = {
                         number: player.number,
                         name: `${player.firstName} ${player.lastName}`,
-                        displayName: React.createElement('div', {}, [
-                            React.createElement('div', { key: 'first' }, player.firstName),
-                            React.createElement('div', { key: 'last' }, player.lastName)
-                        ]),
+                        displayName: `#${player.number} ${player.firstName} ${player.lastName}`
                         lastName: player.lastName,
                         ...stats
                     };
